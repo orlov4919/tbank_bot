@@ -1,7 +1,8 @@
 package main
 
 import (
-	"dz/internal/domain/tgbot"
+	"linkTraccer/internal/domain/tgbot"
+	"linkTraccer/internal/domain/updatesServer"
 	"log"
 	"time"
 
@@ -9,9 +10,10 @@ import (
 )
 
 const (
-	pathBotConfig = "../../configs/bot/config.toml"
-	host          = "api.telegram.org"
-	errChanSize   = 10000
+	pathBotConfig    = "../../configs/bot/config.toml"
+	host             = "api.telegram.org"
+	errChanSize      = 10000
+	updateServerAddr = ":8080"
 )
 
 func main() {
@@ -32,12 +34,19 @@ func main() {
 		}
 	}()
 
+	go func(addr string, bot tgbot.BotService) {
+
+		updateServer := updatesServer.New(addr, bot)
+
+		errChan <- updateServer.StartUpdatesService()
+
+	}(updateServerAddr, bot)
+
 	for {
 		updates, err := bot.HandleUsersUpdates()
 
 		if err != nil {
 			errChan <- err
-			continue
 		}
 
 		if len(updates) > 0 {

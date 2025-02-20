@@ -72,6 +72,8 @@ func (bot *TgBot) HandleUsersUpdates() (Updates, error) {
 		return nil, fmt.Errorf("при десериализации обновлений произошла ошибка: %w", err)
 	}
 
+	fmt.Println(response.Updates)
+
 	return response.Updates, nil
 }
 

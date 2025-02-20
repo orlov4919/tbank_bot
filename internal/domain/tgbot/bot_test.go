@@ -2,10 +2,10 @@ package tgbot_test
 
 import (
 	"bytes"
-	"dz/internal/domain/tgbot"
 	"encoding/json"
 	"fmt"
 	"io"
+	"linkTraccer/internal/domain/tgbot"
 	"log"
 	"net/http"
 	"net/http/httptest"
