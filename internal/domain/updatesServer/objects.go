@@ -7,7 +7,7 @@ type LinkUpdate struct {
 	TgChatIds   []int  `json:"tgChatIds"`
 }
 
-type ApiErrorResponse struct {
+type ApiErrResponse struct {
 	Description      string   `json:"description"`
 	Code             string   `json:"code"`
 	ExceptionName    string   `json:"exceptionName"`
@@ -15,8 +15,8 @@ type ApiErrorResponse struct {
 	Stacktrace       []string `json:"stacktrace"`
 }
 
-func NewApiErrorResponse(exeptionName, exeptionMessage string, stackTrace []string) *ApiErrorResponse {
-	return &ApiErrorResponse{
+func NewApiErrResponse(exeptionName, exeptionMessage string, stackTrace []string) *ApiErrResponse {
+	return &ApiErrResponse{
 		Description:      "Некорректные параметры запроса",
 		Code:             "400",
 		ExceptionName:    exeptionName,

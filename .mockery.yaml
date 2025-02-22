@@ -3,8 +3,8 @@ filename: "{{.InterfaceName | snakecase}}.go"
 mockname: "{{.InterfaceName | firstUpper}}"
 outpkg: mocks
 packages:
-  linkTraccer/internal/domain/tgbot:
+  linkTraccer/internal/application/botService:
     config:
       dir: mocks
     interfaces:
-      BotService:
+      TgClient:

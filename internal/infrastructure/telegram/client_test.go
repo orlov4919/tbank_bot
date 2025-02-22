@@ -1,4 +1,4 @@
-package tgbot_test
+package telegram_test
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"linkTraccer/internal/domain/tgbot"
+	"linkTraccer/internal/infrastructure/telegram"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -13,21 +14,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
-	configPath         = "../../../configs/bot/config.toml"
-	getUpdates         = "/getUpdates"
-	randomStr          = "sdfklsjc"
-	returnIncorectJSON = "верни неправильный json"
 	content            = "content-type"
 	jsonType           = "application/json"
+	updatesPath        = "/getUpdates"
+	messagePath        = "/sendMessage"
+	testBotToken       = "12345"
+	randomStr          = "sdfklsjc"
+	returnIncorectJSON = "верни неправильный json"
 )
 
 func TestRequestToBotAPI(t *testing.T) {
+
 	type TestCase struct {
+		name    string
 		method  string
 		path    string
 		correct bool
@@ -35,15 +38,17 @@ func TestRequestToBotAPI(t *testing.T) {
 		data    io.Reader
 	}
 
-	testCases := []TestCase{
+	tests := []TestCase{
 		{
+			name:    "Верный запрос на получение обновлений от сервера",
 			method:  http.MethodGet,
-			path:    "/getUpdates",
+			path:    updatesPath,
 			client:  http.DefaultClient,
 			data:    nil,
 			correct: true,
 		},
 		{
+			name:    "Не правильно указан путь для получения обновлений",
 			method:  http.MethodGet,
 			path:    "/Updates",
 			client:  http.DefaultClient,
@@ -52,8 +57,9 @@ func TestRequestToBotAPI(t *testing.T) {
 		},
 
 		{
+			name:    "Не правильно указан метод для получения обновлений",
 			method:  "//",
-			path:    "/getUpdates",
+			path:    updatesPath,
 			client:  http.DefaultClient,
 			data:    nil,
 			correct: false,
@@ -61,25 +67,27 @@ func TestRequestToBotAPI(t *testing.T) {
 
 		{
 			method:  "Posts",
-			path:    "/getUpdates",
+			path:    updatesPath,
 			client:  http.DefaultClient,
 			data:    nil,
 			correct: false,
 		},
 
 		{
+			name:    "Верный запрос для отправления сообщений",
 			method:  http.MethodPost,
-			path:    "/sendMessage",
+			path:    messagePath,
 			client:  http.DefaultClient,
 			data:    &bytes.Buffer{},
 			correct: true,
 		},
 
 		{
+			name:    "Тест на таймаут при запросе",
 			method:  http.MethodPost,
-			path:    "/sendMessage",
+			path:    messagePath,
 			client:  &http.Client{Timeout: time.Nanosecond},
-			data:    nil,
+			data:    &bytes.Buffer{},
 			correct: false,
 		},
 	}
@@ -92,54 +100,69 @@ func TestRequestToBotAPI(t *testing.T) {
 
 	defer server.Close()
 
-	for _, test := range testCases {
+	for _, test := range tests {
 		parsedURL, _ := url.Parse(server.URL + test.path)
-		_, err := tgbot.RequestToBotAPI(test.client, test.method, test.data, parsedURL)
+
+		_, err := telegram.RequestToAPI(test.client, parsedURL, test.method, test.data)
 
 		if test.correct {
 			assert.NoError(t, err)
 		} else {
-			fmt.Println(err)
 			assert.Error(t, err)
 		}
 	}
 }
 
-func TestTgBot_HandleUsersUpdates(t *testing.T) {
+func TestTgClient_HandleUsersUpdates(t *testing.T) {
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("/bot"+testBotToken+"/getUpdates", getUpdatesHandler)
+
 	server := httptest.NewServer(mux)
-	botConfig := tgbot.NewConfig()
 
 	defer server.Close()
-
-	if _, err := toml.DecodeFile(configPath, botConfig); err != nil {
-		log.Println(fmt.Errorf("при парсинге конфига возникла ошибка: %w", err))
-	}
-
-	mux.HandleFunc("/bot"+botConfig.Token+"/getUpdates/", getUpdatesHandler)
 
 	serverURL, _ := url.Parse(server.URL)
 	serverHost := serverURL.Host
 
 	type TestCase struct {
-		bot     *tgbot.TgBot
+		name    string
+		client  *telegram.TgClient
+		offset  int
+		limit   int
 		correct bool
 	}
 
 	testCases := []TestCase{
-		{bot: tgbot.New(botConfig, serverHost),
+		{
+			name:    "Передаем при создании клиента, верный хост сервера",
+			client:  telegram.NewClient(serverHost),
+			offset:  5,
+			limit:   100,
 			correct: true,
 		},
 		{
-			bot:     tgbot.New(botConfig, serverHost+randomStr),
+			name:    "Передаем при создании клиента, неверный хост сервера",
+			client:  telegram.NewClient(serverHost + randomStr),
+			offset:  5,
+			limit:   100,
+			correct: false,
+		},
+		{
+			name:    "Передаем отрицательный лимит при запросе",
+			client:  telegram.NewClient(serverHost + randomStr),
+			offset:  5,
+			limit:   -2,
 			correct: false,
 		},
 	}
 
 	for _, test := range testCases {
-		test.bot.ChangeScheme("http")
 
-		_, err := test.bot.HandleUsersUpdates()
+		test.client.ChangeSchemeHTTP()
+		test.client.SetBotToken(testBotToken)
+
+		_, err := test.client.HandleUsersUpdates(test.offset, test.limit)
 
 		if test.correct {
 			assert.NoError(t, err)
@@ -149,52 +172,54 @@ func TestTgBot_HandleUsersUpdates(t *testing.T) {
 	}
 }
 
-func TestTgBot_SendMessage(t *testing.T) {
+func TestTgClient_SendMessage(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
-	botConfig := tgbot.NewConfig()
 
 	defer server.Close()
 
-	if _, err := toml.DecodeFile(configPath, botConfig); err != nil {
-		log.Println(fmt.Errorf("при парсинге конфига возникла ошибка: %w", err))
-	}
-
-	mux.HandleFunc("/bot"+botConfig.Token+"/sendMessage", sendMessageHandler)
+	mux.HandleFunc("/bot"+testBotToken+"/sendMessage", sendMessageHandler)
 
 	serverURL, _ := url.Parse(server.URL)
 	serverHost := serverURL.Host
 
 	type TestCase struct {
-		bot     *tgbot.TgBot
+		name    string
 		id      int
 		text    string
+		bot     *telegram.TgClient
 		correct bool
 	}
 
 	testCases := []TestCase{
 
-		{bot: tgbot.New(botConfig, serverHost),
+		{
+			name:    "Корректная отправка сообщения",
 			id:      15,
 			text:    "Привет мир",
+			bot:     telegram.NewClient(serverHost),
 			correct: true,
 		},
 		{
-			bot:     tgbot.New(botConfig, serverHost),
+			name:    "Передаем отрицателный id",
 			id:      -225,
 			text:    "Привет мир",
+			bot:     telegram.NewClient(serverHost),
 			correct: false,
 		},
 		{
-			bot:     tgbot.New(botConfig, serverHost),
+			name:    "С помощью текста запроса, просим сервер что бы вернулся не тот json, который ожидается",
 			id:      228,
 			text:    returnIncorectJSON,
+			bot:     telegram.NewClient(serverHost),
 			correct: false,
 		},
 	}
 
 	for _, test := range testCases {
-		test.bot.ChangeScheme("http")
+
+		test.bot.SetBotToken(testBotToken)
+		test.bot.ChangeSchemeHTTP()
 
 		err := test.bot.SendMessage(test.id, test.text)
 
@@ -208,7 +233,7 @@ func TestTgBot_SendMessage(t *testing.T) {
 
 func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	requestData, _ := io.ReadAll(r.Body)
-	jsonData := &tgbot.SendMessage{}
+	jsonData := &telegram.SendMessage{}
 	err := json.Unmarshal(requestData, jsonData)
 
 	switch {
@@ -226,7 +251,7 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusOK)
 
-		serverAnswer := &tgbot.DefaultServerAnswer{
+		serverAnswer := &telegram.DefaultServerAnswer{
 			Ok: true,
 		}
 
@@ -238,36 +263,11 @@ func sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func UpdatesHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet || r.Method == http.MethodPost {
-		w.WriteHeader(http.StatusOK)
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
-	}
-}
-
-func MessageHandler(w http.ResponseWriter, r *http.Request) {
-	time.Sleep(time.Microsecond) // создание искусственной задержки
-
-	methodGet := r.Method == http.MethodGet
-	methodPost := r.Method == http.MethodPost
-
-	if methodGet || methodPost {
-		if r.Header.Get(content) != jsonType {
-			w.WriteHeader(http.StatusBadRequest)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
-	}
-}
-
 func getUpdatesHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
-	response := tgbot.GetUpdateAnswer{
-		DefaultServerAnswer: tgbot.DefaultServerAnswer{
+	response := telegram.GetUpdateAnswer{
+		DefaultServerAnswer: telegram.DefaultServerAnswer{
 			Ok: true,
 		},
 		Updates: []tgbot.Update{
@@ -285,5 +285,30 @@ func getUpdatesHandler(w http.ResponseWriter, _ *http.Request) {
 
 	if err != nil {
 		log.Println(fmt.Errorf("ошибка при записи в тело ответа: %w", err))
+	}
+}
+
+func UpdatesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet || r.Method == http.MethodPost {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+}
+
+func MessageHandler(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(time.Microsecond)
+
+	methodGet := r.Method == http.MethodGet
+	methodPost := r.Method == http.MethodPost
+
+	if methodGet || methodPost {
+		if r.Header.Get(content) != jsonType {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }

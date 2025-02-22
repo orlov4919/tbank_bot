@@ -1,13 +1,13 @@
-package updatesServer_test
+package updatesHandler_test
 
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"linkTraccer/internal/domain/tgbot/mocks"
+	"linkTraccer/internal/application/botService/mocks"
 	"linkTraccer/internal/domain/updatesServer"
+	"linkTraccer/internal/infrastructure/updatesHandler"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -17,14 +17,9 @@ import (
 
 const (
 	updatesPath = "/updates"
-	randomData  = "abcdsfjklj"
 )
 
-const(
-	serverUrl := http://localhost:8080/page
-)
-
-var testJson = &updatesServer.ApiErrorResponse{
+var testJson = &updatesServer.ApiErrResponse{
 	Description: "ошибка для тестирования",
 	Code:        "400",
 }
@@ -44,29 +39,23 @@ func TestUpdateServer_WriteResponseData(t *testing.T) {
 	}
 
 	tests := []TestCase{
-		{codeHTTP: 200,
-			data:    testJson,
-			correct: true,
+		{
+			codeHTTP: 200,
+			data:     testJson,
 		},
 		{
 			codeHTTP: 400,
 			data:     nil,
-			correct:  false,
 		},
-		//{
-		//	codeHTTP: 200,
-		//	data:     "abcd",
-		//	correct:  true,
-		//},
 	}
 
 	for _, test := range tests {
 		response := httptest.NewRecorder()
 
 		if test.data != nil {
-			updatesServer.WriteInResponse(response, test.codeHTTP, test.data) // исправить этот тест
+			updatesHandler.WriteInResponse(response, test.codeHTTP, test.data) // исправить этот тест
 		} else {
-			updatesServer.WriteInResponse(response, test.codeHTTP, nil)
+			updatesHandler.WriteInResponse(response, test.codeHTTP, nil)
 		}
 
 		assert.Equal(t, test.codeHTTP, response.Code)
@@ -74,40 +63,47 @@ func TestUpdateServer_WriteResponseData(t *testing.T) {
 }
 
 func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
+	tgClient := mocks.NewTgClient(t)
+
+	tgClient.On("SendMessage", mock.Anything, mock.Anything).Return(nil)
+
+	updateHandler := updatesHandler.New(tgClient)
 	client := http.Client{Timeout: time.Second * 10}
 	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-	tgBot := mocks.NewBotService(t)
 
-	tgBot.On("SendMessage", mock.Anything, mock.Anything).Return(nil)
+	mux.HandleFunc(updatesPath, updateHandler.HandleLinkUpdates)
 
-	defer server.Close()
+	testServer := httptest.NewServer(mux)
 
-	updateServer := updatesServer.New(server.URL, tgBot)
-
-	mux.HandleFunc(updatesPath, updateServer.HandleLinkUpdates)
+	defer testServer.Close()
 
 	byteJSON, _ := json.Marshal(validJson)
 
 	type testCase struct {
+		name    string
 		method  string
 		body    *bytes.Buffer
 		data    []byte
 		correct bool
 	}
 
-	tests := []testCase{{
-		method:  http.MethodGet,
-		body:    nil,
-		data:    []byte("Hello word"),
-		correct: false,
-	}, {
-		method:  http.MethodGet,
-		body:    bytes.NewBuffer(byteJSON),
-		data:    byteJSON,
-		correct: false,
-	},
+	tests := []testCase{
 		{
+			name:    "Тест на недопустимый метод сервера",
+			method:  http.MethodGet,
+			body:    nil,
+			data:    []byte("Hello word"),
+			correct: false,
+		},
+		{
+			name:    "Тест на недопустимый метод сервера",
+			method:  http.MethodPut,
+			body:    bytes.NewBuffer(byteJSON),
+			data:    byteJSON,
+			correct: false,
+		},
+		{
+			name:    "Корректный тест",
 			method:  http.MethodPost,
 			body:    bytes.NewBuffer(byteJSON),
 			data:    byteJSON,
@@ -122,9 +118,9 @@ func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 	for _, test := range tests {
 
 		if test.body == nil {
-			req, err = http.NewRequest(test.method, server.URL+updatesPath, nil)
+			req, err = http.NewRequest(test.method, testServer.URL+updatesPath, nil)
 		} else {
-			req, err = http.NewRequest(test.method, server.URL+updatesPath, test.body)
+			req, err = http.NewRequest(test.method, testServer.URL+updatesPath, test.body)
 		}
 
 		if err != nil {
@@ -145,16 +141,3 @@ func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 		}
 	}
 }
-
-//func TestUpdateServer_StartUpdatesService(t *testing.T) {
-//	//client := http.Client{Timeout: time.Second * 10}
-//
-//	tgBot := mocks.NewBotService(t)
-//
-//
-//	//tgBot.On("SendMessage", mock.Anything, mock.Anything).Return(nil)
-//
-//	updateServer := updatesServer.New(server.URL, tgBot)
-//
-//
-//}
