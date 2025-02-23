@@ -47,16 +47,13 @@ func (bot *TgBot) Start() {
 
 			for _, update := range updates {
 				go func(update tgbot.Update) {
-					// err := bot.SendMessage(update.Msg.From.ID, update.Msg.Text)
-
+					bot.client.SendMessage(update.Msg.From.ID, update.Msg.Text)
 				}(update)
 			}
 		}
 
 		time.Sleep(time.Second * 5)
-
 	}
-
 }
 
 func (bot *TgBot) changeOffset(newOffset int) {

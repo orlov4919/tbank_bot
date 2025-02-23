@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"linkTraccer/internal/application/botService/mocks"
-	"linkTraccer/internal/domain/updatesServer"
+	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/infrastructure/updatesHandler"
 	"log"
 	"net/http"
@@ -19,12 +19,12 @@ const (
 	updatesPath = "/updates"
 )
 
-var testJson = &updatesServer.ApiErrResponse{
+var testJson = &dto.ApiErrResponse{
 	Description: "ошибка для тестирования",
 	Code:        "400",
 }
 
-var validJson = &updatesServer.LinkUpdate{
+var validJson = &dto.LinkUpdate{
 	ID:          15,
 	URL:         "google.com",
 	Description: "Новое уведомление",

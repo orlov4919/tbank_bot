@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"linkTraccer/internal/application/botService"
-	"linkTraccer/internal/domain/updatesServer"
+	"linkTraccer/internal/domain/dto"
 	"log"
 	"net/http"
 )
@@ -32,7 +32,7 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 	userUpdates, err := io.ReadAll(r.Body)
 
 	if err != nil {
-		errorResponse := updatesServer.NewApiErrResponse(ReadBodyError, err.Error(), []string{})
+		errorResponse := dto.NewApiErrResponse(ReadBodyError, err.Error(), []string{})
 
 		WriteInResponse(w, http.StatusBadRequest, errorResponse)
 
@@ -41,15 +41,15 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 
 	defer r.Body.Close()
 
-	linkUpdate := &updatesServer.LinkUpdate{}
+	linkUpdate := &dto.LinkUpdate{}
 
 	if err = json.Unmarshal(userUpdates, linkUpdate); err != nil {
-		errorResponse := updatesServer.NewApiErrResponse(jsonError, err.Error(), []string{})
+		errorResponse := dto.NewApiErrResponse(jsonError, err.Error(), []string{})
 
 		WriteInResponse(w, http.StatusBadRequest, errorResponse)
 
 	} else if r.Method != http.MethodPost {
-		errorResponse := updatesServer.NewApiErrResponse(methodError, fmt.Sprintf(methodErrorDescription, r.Method), []string{})
+		errorResponse := dto.NewApiErrResponse(methodError, fmt.Sprintf(methodErrorDescription, r.Method), []string{})
 
 		WriteInResponse(w, http.StatusBadRequest, errorResponse)
 

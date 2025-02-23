@@ -1,4 +1,4 @@
-package updatesServer
+package dto
 
 type LinkUpdate struct {
 	ID          int    `json:"id"`

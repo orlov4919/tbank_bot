@@ -8,3 +8,8 @@ packages:
       dir: mocks
     interfaces:
       TgClient:
+  linkTraccer/internal/infrastructure/siteClients/stackoverflow:
+    config:
+      dir: mocks
+    interfaces:
+      HTTPClient:

@@ -1,8 +1,8 @@
 package main
 
 import (
+	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/domain/tgbot"
-	"linkTraccer/internal/domain/updatesServer"
 	"log"
 	"time"
 
@@ -36,7 +36,7 @@ func main() {
 
 	go func(addr string, bot tgbot.BotService) {
 
-		updateServer := updatesServer.New(addr, bot)
+		updateServer := dto.New(addr, bot)
 
 		errChan <- updateServer.StartUpdatesService()
 

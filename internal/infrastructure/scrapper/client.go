@@ -1,5 +1,5 @@
 package scrapper
 
-type ScrapperClient struct {
-	storage userRepository
-}
+//type ScrapperClient struct {
+//	storage userRepository
+//}
