@@ -1,4 +1,4 @@
-package updatesHandler
+package botHandler
 
 import (
 	"encoding/json"

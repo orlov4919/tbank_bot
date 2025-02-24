@@ -1,4 +1,4 @@
-package updatesHandler_test
+package botHandler_test
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"linkTraccer/internal/application/botService/mocks"
 	"linkTraccer/internal/domain/dto"
-	"linkTraccer/internal/infrastructure/updatesHandler"
+	"linkTraccer/internal/infrastructure/botHandler"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -53,9 +53,9 @@ func TestUpdateServer_WriteResponseData(t *testing.T) {
 		response := httptest.NewRecorder()
 
 		if test.data != nil {
-			updatesHandler.WriteInResponse(response, test.codeHTTP, test.data) // исправить этот тест
+			botHandler.WriteInResponse(response, test.codeHTTP, test.data) // исправить этот тест
 		} else {
-			updatesHandler.WriteInResponse(response, test.codeHTTP, nil)
+			botHandler.WriteInResponse(response, test.codeHTTP, nil)
 		}
 
 		assert.Equal(t, test.codeHTTP, response.Code)
@@ -67,7 +67,7 @@ func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 
 	tgClient.On("SendMessage", mock.Anything, mock.Anything).Return(nil)
 
-	updateHandler := updatesHandler.New(tgClient)
+	updateHandler := botHandler.New(tgClient)
 	client := http.Client{Timeout: time.Second * 10}
 	mux := http.NewServeMux()
 

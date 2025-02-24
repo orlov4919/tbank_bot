@@ -1,12 +1,8 @@
 package main
 
 import (
-	"linkTraccer/internal/domain/dto"
-	"linkTraccer/internal/domain/tgbot"
-	"log"
-	"time"
-
-	"github.com/BurntSushi/toml"
+	"linkTraccer/internal/application/botService"
+	"linkTraccer/internal/infrastructure/telegram"
 )
 
 const (
@@ -17,54 +13,12 @@ const (
 )
 
 func main() {
-	botConfig := tgbot.NewConfig()
 
-	if _, err := toml.DecodeFile(pathBotConfig, botConfig); err != nil {
-		log.Fatal(err)
-	}
+	tgClient := telegram.NewClient("api.telegram.org")
+	tgClient.SetBotToken("7723330730:AAEKTKDWzoEwWK4DrLqWC4q-7LsqwXfOMUU")
 
-	bot := tgbot.New(botConfig, host)
-	errChan := make(chan error, errChanSize)
+	tgBot := botService.New(tgClient, 5)
+	tgBot.Start()
 
-	defer close(errChan)
-
-	go func() {
-		for err := range errChan {
-			log.Println(err)
-		}
-	}()
-
-	go func(addr string, bot tgbot.BotService) {
-
-		updateServer := dto.New(addr, bot)
-
-		errChan <- updateServer.StartUpdatesService()
-
-	}(updateServerAddr, bot)
-
-	for {
-		updates, err := bot.HandleUsersUpdates()
-
-		if err != nil {
-			errChan <- err
-		}
-
-		if len(updates) > 0 {
-			bot.ChangeOffset(updates[len(updates)-1].UpdateID + 1)
-
-			log.Printf("Получено %d новых апдейтов", len(updates))
-
-			for _, update := range updates {
-				go func(update tgbot.Update) {
-					err := bot.SendMessage(update.Msg.From.ID, update.Msg.Text)
-
-					if err != nil {
-						errChan <- err
-					}
-				}(update)
-			}
-		}
-
-		time.Sleep(time.Second * 5)
-	}
+	//userRepo := file.NewFileStorage()
 }

@@ -1,4 +1,4 @@
-package scrapper
+package scrapperClient
 
 //type ScrapperClient struct {
 //	storage userRepository

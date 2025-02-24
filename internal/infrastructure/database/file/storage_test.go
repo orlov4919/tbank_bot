@@ -225,7 +225,7 @@ func TestFileStorage_GetAllUserLinks(t *testing.T) {
 
 	for _, test := range tests {
 
-		links, err := fileStorage.GetAllUserLinks(test.userID)
+		links, err := fileStorage.AllUserLinks(test.userID)
 
 		if test.correct {
 			assert.ElementsMatch(t, test.links, links)
@@ -282,7 +282,7 @@ func TestFileStorage_GetAllLinks(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.ElementsMatch(t, test.links, fileStorage.GetAllLinks())
+		assert.ElementsMatch(t, test.links, fileStorage.AllLinks())
 	}
 }
 
@@ -353,6 +353,6 @@ func TestFileStorage_GetUsersWhoTrackLink(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.ElementsMatch(t, test.users, fileStorage.GetUsersWhoTrackLink(test.link))
+		assert.ElementsMatch(t, test.users, fileStorage.UsersWhoTrackLink(test.link))
 	}
 }

@@ -8,11 +8,13 @@ import (
 
 type User = scrapper.User
 type Link = scrapper.Link
+type LinkState = scrapper.LinkState
 
 type FileStorage struct {
 	mu          *sync.Mutex
 	userToLinks map[User]map[Link]struct{}
 	linkToUsers map[Link]map[User]struct{}
+	linkState   map[Link]LinkState
 }
 
 func NewFileStorage() *FileStorage {
@@ -20,6 +22,7 @@ func NewFileStorage() *FileStorage {
 		mu:          &sync.Mutex{},
 		userToLinks: make(map[User]map[Link]struct{}),
 		linkToUsers: make(map[Link]map[User]struct{}),
+		linkState:   make(map[Link]LinkState),
 	}
 }
 
@@ -40,6 +43,7 @@ func (f *FileStorage) TrackLink(userID User, userLink Link) error {
 		return errors.New("Ссылка уже сохранена")
 	}
 
+	f.linkState[userLink] = ""
 	f.userToLinks[userID][userLink] = struct{}{}
 	f.linkToUsers[userLink][userID] = struct{}{}
 
@@ -69,7 +73,7 @@ func (f *FileStorage) UntrackLink(user User, link Link) error {
 	return nil
 }
 
-func (f *FileStorage) GetAllUserLinks(user User) ([]Link, error) {
+func (f *FileStorage) AllUserLinks(user User) ([]Link, error) {
 	f.mu.Lock()
 
 	defer f.mu.Unlock()
@@ -87,7 +91,7 @@ func (f *FileStorage) GetAllUserLinks(user User) ([]Link, error) {
 	return links, nil
 }
 
-func (f *FileStorage) GetAllLinks() []Link {
+func (f *FileStorage) AllLinks() []Link {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -100,7 +104,7 @@ func (f *FileStorage) GetAllLinks() []Link {
 	return links
 }
 
-func (f *FileStorage) GetUsersWhoTrackLink(userLink Link) []User {
+func (f *FileStorage) UsersWhoTrackLink(userLink Link) []User {
 
 	if _, ok := f.linkToUsers[userLink]; !ok {
 		return []User{}
@@ -113,4 +117,31 @@ func (f *FileStorage) GetUsersWhoTrackLink(userLink Link) []User {
 	}
 
 	return users
+}
+
+func (f *FileStorage) LinkState(link Link) (LinkState, error) {
+	f.mu.Lock()
+
+	defer f.mu.Unlock()
+
+	if _, ok := f.linkState[link]; !ok {
+		return "", errors.New("Нет такой ссылки в хранилище")
+	}
+
+	return f.linkState[link], nil
+
+}
+
+func (f *FileStorage) ChangeLinkState(link Link, newState LinkState) error {
+	f.mu.Lock()
+
+	defer f.mu.Unlock()
+
+	if _, ok := f.linkState[link]; !ok {
+		return errors.New("Нет такой ссылки в хранилище")
+	}
+
+	f.linkState[link] = newState
+
+	return nil
 }

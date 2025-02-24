@@ -43,6 +43,7 @@ func (bot *TgBot) Start() {
 		if updatesNum > 0 {
 			bot.changeOffset(updates[updatesNum-1].UpdateID + 1)
 
+			log.Println(updates[updatesNum-1].Msg.From.ID)
 			log.Printf("Получено %d новых апдейтов", len(updates))
 
 			for _, update := range updates {
