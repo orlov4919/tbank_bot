@@ -12,6 +12,8 @@ type Link = scrapper.Link
 type LinkState = scrapper.LinkState
 
 type UserRepo interface {
+	DeleteUser(userID User) error
+	UserExist(userID User) bool
 	TrackLink(userID User, userLink Link) error
 	UntrackLink(user User, link Link) error
 	AllUserLinks(user User) ([]Link, error)

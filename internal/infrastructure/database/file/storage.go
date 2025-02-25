@@ -1,9 +1,14 @@
 package file
 
 import (
-	"errors"
 	"linkTraccer/internal/domain/scrapper"
 	"sync"
+)
+
+const (
+	userAlreadySaveLink = "пользователь уже сохранял эту ссылку"
+	userNotSaveLink     = "пользователь не сохранял эту ссылку"
+	userNotRegistered   = "пользователь не регистрировался"
 )
 
 type User = scrapper.User
@@ -12,40 +17,40 @@ type LinkState = scrapper.LinkState
 
 type FileStorage struct {
 	mu          *sync.Mutex
-	userToLinks map[User]map[Link]struct{}
-	linkToUsers map[Link]map[User]struct{}
-	linkState   map[Link]LinkState
+	UserToLinks map[User]map[Link]struct{}
+	LinkToUsers map[Link]map[User]struct{}
+	LinksState  map[Link]LinkState
 }
 
 func NewFileStorage() *FileStorage {
 	return &FileStorage{
 		mu:          &sync.Mutex{},
-		userToLinks: make(map[User]map[Link]struct{}),
-		linkToUsers: make(map[Link]map[User]struct{}),
-		linkState:   make(map[Link]LinkState),
+		UserToLinks: make(map[User]map[Link]struct{}),
+		LinkToUsers: make(map[Link]map[User]struct{}),
+		LinksState:  make(map[Link]LinkState),
 	}
 }
 
-func (f *FileStorage) TrackLink(userID User, userLink Link) error {
+func (f *FileStorage) TrackLink(userID User, userLink Link, initialState LinkState) error {
 	f.mu.Lock()
 
 	defer f.mu.Unlock()
 
-	if _, ok := f.userToLinks[userID]; !ok {
-		f.userToLinks[userID] = make(map[Link]struct{})
+	if _, ok := f.UserToLinks[userID]; !ok {
+		f.UserToLinks[userID] = make(map[Link]struct{})
 	}
 
-	if _, ok := f.linkToUsers[userLink]; !ok {
-		f.linkToUsers[userLink] = make(map[User]struct{})
+	if _, ok := f.LinkToUsers[userLink]; !ok {
+		f.LinkToUsers[userLink] = make(map[User]struct{})
 	}
 
-	if _, ok := f.userToLinks[userID][userLink]; ok {
-		return errors.New("Ссылка уже сохранена")
+	if _, ok := f.UserToLinks[userID][userLink]; ok {
+		return NewErrWithStorage(userAlreadySaveLink)
 	}
 
-	f.linkState[userLink] = ""
-	f.userToLinks[userID][userLink] = struct{}{}
-	f.linkToUsers[userLink][userID] = struct{}{}
+	f.LinksState[userLink] = initialState
+	f.UserToLinks[userID][userLink] = struct{}{}
+	f.LinkToUsers[userLink][userID] = struct{}{}
 
 	return nil
 }
@@ -55,19 +60,24 @@ func (f *FileStorage) UntrackLink(user User, link Link) error {
 
 	defer f.mu.Unlock()
 
-	if _, ok := f.userToLinks[user]; !ok {
-		return errors.New("нет указанного пользователя")
+	if _, ok := f.UserToLinks[user]; !ok {
+		return NewErrWithStorage(userNotRegistered)
 	}
 
-	if _, ok := f.userToLinks[user][link]; !ok {
-		return errors.New("указанный пользователь не отслеживает эту ссылку")
+	if _, ok := f.UserToLinks[user][link]; !ok {
+		return NewErrWithStorage(userNotSaveLink)
 	}
 
-	delete(f.userToLinks[user], link)
-	delete(f.linkToUsers[link], user) // вроде бы ошибка
+	if _, ok := f.LinkToUsers[link]; !ok {
+		return NewErrWithStorage(userNotSaveLink)
+	}
 
-	if len(f.linkToUsers[link]) == 0 {
-		delete(f.linkToUsers, link)
+	delete(f.UserToLinks[user], link)
+	delete(f.LinkToUsers[link], user)
+
+	if len(f.LinkToUsers[link]) == 0 {
+		delete(f.LinkToUsers, link)
+		delete(f.LinksState, link)
 	}
 
 	return nil
@@ -78,13 +88,13 @@ func (f *FileStorage) AllUserLinks(user User) ([]Link, error) {
 
 	defer f.mu.Unlock()
 
-	if _, ok := f.userToLinks[user]; !ok || len(f.userToLinks[user]) == 0 {
-		return nil, errors.New("нет указанной ссылки в хранилище")
+	if _, ok := f.UserToLinks[user]; !ok || len(f.UserToLinks[user]) == 0 {
+		return nil, NewErrWithStorage(userNotSaveLink)
 	}
 
-	links := make([]Link, 0, len(f.userToLinks[user]))
+	links := make([]Link, 0, len(f.UserToLinks[user]))
 
-	for userLink, _ := range f.userToLinks[user] {
+	for userLink, _ := range f.UserToLinks[user] {
 		links = append(links, userLink)
 	}
 
@@ -95,9 +105,9 @@ func (f *FileStorage) AllLinks() []Link {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	links := make([]Link, 0, len(f.linkToUsers))
+	links := make([]Link, 0, len(f.LinkToUsers))
 
-	for link, _ := range f.linkToUsers {
+	for link, _ := range f.LinkToUsers {
 		links = append(links, link)
 	}
 
@@ -106,13 +116,13 @@ func (f *FileStorage) AllLinks() []Link {
 
 func (f *FileStorage) UsersWhoTrackLink(userLink Link) []User {
 
-	if _, ok := f.linkToUsers[userLink]; !ok {
+	if _, ok := f.LinkToUsers[userLink]; !ok {
 		return []User{}
 	}
 
-	users := make([]User, 0, len(f.linkToUsers[userLink]))
+	users := make([]User, 0, len(f.LinkToUsers[userLink]))
 
-	for user, _ := range f.linkToUsers[userLink] {
+	for user, _ := range f.LinkToUsers[userLink] {
 		users = append(users, user)
 	}
 
@@ -124,12 +134,11 @@ func (f *FileStorage) LinkState(link Link) (LinkState, error) {
 
 	defer f.mu.Unlock()
 
-	if _, ok := f.linkState[link]; !ok {
-		return "", errors.New("Нет такой ссылки в хранилище")
+	if _, ok := f.LinksState[link]; !ok {
+		return "", NewErrWithStorage(userNotSaveLink)
 	}
 
-	return f.linkState[link], nil
-
+	return f.LinksState[link], nil
 }
 
 func (f *FileStorage) ChangeLinkState(link Link, newState LinkState) error {
@@ -137,11 +146,42 @@ func (f *FileStorage) ChangeLinkState(link Link, newState LinkState) error {
 
 	defer f.mu.Unlock()
 
-	if _, ok := f.linkState[link]; !ok {
-		return errors.New("Нет такой ссылки в хранилище")
+	if _, ok := f.LinksState[link]; !ok {
+		return NewErrWithStorage(userNotSaveLink)
 	}
 
-	f.linkState[link] = newState
+	f.LinksState[link] = newState
+
+	return nil
+}
+
+func (f *FileStorage) UserExist(userID User) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, ok := f.UserToLinks[userID]
+
+	return ok
+}
+
+func (f *FileStorage) DeleteUser(userID User) error {
+	if !f.UserExist(userID) {
+		return NewErrWithStorage(userNotRegistered)
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for link, _ := range f.UserToLinks[userID] {
+
+		delete(f.LinkToUsers[link], userID)
+
+		if len(f.LinkToUsers[link]) == 0 {
+			delete(f.LinkToUsers, link)
+			delete(f.LinksState, link)
+		}
+	}
+
+	delete(f.UserToLinks, userID)
 
 	return nil
 }
