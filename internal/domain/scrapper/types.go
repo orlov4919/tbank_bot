@@ -5,9 +5,13 @@ type Link = string
 type LinkState = string
 
 type StackUpdate struct {
-	Updates []LastUpdate `json:"items"`
+	Updates []LastStackUpdate `json:"items"`
 }
 
-type LastUpdate struct {
+type LastStackUpdate struct {
 	UpdateTime int `json:"last_activity_date"`
+}
+
+type LastGitUpdate struct {
+	UpdateTime string `json:"updated_at"`
 }

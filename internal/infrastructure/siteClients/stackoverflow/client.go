@@ -73,12 +73,16 @@ func (stack *StackClient) CanTrack(link Link) bool {
 	}
 
 	resp, err := stack.client.Do(req)
-	defer resp.Body.Close()
 
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil {
 		return false
 	}
 
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
 	return true
 }
 
@@ -95,6 +99,8 @@ func (stack *StackClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string
 	}
 
 	questionID, err := strconv.Atoi(pathArgs[2])
+
+	// добавить проверку на пусты символы
 
 	if pathArgs[indEmptyElement] != "" || pathArgs[indQuestions] != "questions" || err != nil || questionID < 1 {
 		return false
@@ -127,9 +133,14 @@ func (stack *StackClient) LinkState(link Link) (LinkState, error) {
 	}
 
 	resp, err := stack.client.Do(req)
+
+	if err != nil {
+		return "", errors.New("Запрос закончился ошибкой")
+	}
+
 	defer resp.Body.Close()
 
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
 		return "", errors.New("Запрос закончился ошибкой")
 	}
 
