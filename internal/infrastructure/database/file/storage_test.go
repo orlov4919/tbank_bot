@@ -834,3 +834,61 @@ func TestFileStorage_DeleteUser(t *testing.T) {
 		}
 	}
 }
+
+func TestFileStorage_UserTrackLink(t *testing.T) {
+
+	type dataToStore struct {
+		name      string
+		userID    User
+		userLink  Link
+		linkState LinkState
+	}
+
+	dataSlice := []dataToStore{
+		{
+			name:      "Добавляем первую ссылку у юзера с id = 1",
+			userID:    1,
+			userLink:  "google.com",
+			linkState: zeroState,
+		},
+	}
+
+	fileStorage := file.NewFileStorage()
+
+	for _, data := range dataSlice {
+		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
+	}
+
+	type testCase struct {
+		name string
+
+		userID   User
+		userLink Link
+
+		correct bool
+	}
+
+	tests := []testCase{
+		{
+			name:     "Тест на пользователя который не зарегистрирован",
+			userID:   3,
+			userLink: "google.com",
+			correct:  false,
+		},
+		{
+			name:     "Тест на ссылку, которую пользователь не отслеживает",
+			userID:   1,
+			userLink: "tbank.ru",
+			correct:  false,
+		},
+		{
+			name:     "Тест на ссылку, которую пользователь отслеживает",
+			userID:   1,
+			userLink: "google.com",
+			correct:  true,
+		},
+	}
+	for _, test := range tests {
+		assert.Equal(t, test.correct, fileStorage.UserTrackLink(test.userID, test.userLink))
+	}
+}
