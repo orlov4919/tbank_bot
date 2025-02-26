@@ -3,7 +3,6 @@ package telegram
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"linkTraccer/internal/domain/tgbot"
@@ -11,10 +10,13 @@ import (
 	"net/url"
 	"path"
 	"strconv"
-	"time"
 )
 
 type Updates = tgbot.Updates
+
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
 
 const (
 	getUpdates  = "getUpdates"
@@ -26,17 +28,15 @@ type TgClient struct {
 	basePath string
 	scheme   string
 	host     string
-	client   *http.Client
+	client   HTTPClient
 }
 
-func NewClient(host string) *TgClient {
+func NewClient(client HTTPClient, host string) *TgClient {
 
 	return &TgClient{
 		scheme: "https",
 		host:   host,
-		client: &http.Client{
-			Timeout: time.Second * 10,
-		},
+		client: client,
 	}
 }
 
@@ -60,11 +60,11 @@ func (bot *TgClient) HandleUsersUpdates(offset, limit int) (Updates, error) {
 	requestURL = bot.makeRequestURL(getUpdates, q)
 	jsonData, err := RequestToAPI(bot.client, requestURL, http.MethodGet, nil)
 
-	response := &GetUpdateAnswer{}
-
 	if err != nil {
 		return nil, fmt.Errorf("при запросе getUpdates произошла ошибка: %w", err)
 	}
+
+	response := &GetUpdateAnswer{}
 
 	if err := json.Unmarshal(jsonData, response); err != nil {
 		return nil, fmt.Errorf("при десериализации обновлений произошла ошибка: %w", err)
@@ -74,6 +74,7 @@ func (bot *TgClient) HandleUsersUpdates(offset, limit int) (Updates, error) {
 }
 
 func (bot *TgClient) SendMessage(userID int, text string) error {
+
 	sendMessageURL := bot.makeRequestURL(sendMessage, nil)
 
 	data := &SendMessage{
@@ -102,7 +103,7 @@ func (bot *TgClient) SendMessage(userID int, text string) error {
 	return nil
 }
 
-func RequestToAPI(client *http.Client, url *url.URL, httpMethod string, data io.Reader) ([]byte, error) {
+func RequestToAPI(client HTTPClient, url *url.URL, httpMethod string, data io.Reader) ([]byte, error) {
 
 	req, err := http.NewRequest(httpMethod, url.String(), data)
 
@@ -121,16 +122,12 @@ func RequestToAPI(client *http.Client, url *url.URL, httpMethod string, data io.
 	}
 
 	if r.StatusCode != http.StatusOK {
-		return nil, errors.New("пришел не 200")
+		return nil, NewErrBotAPI(r.StatusCode)
 	}
 
 	defer r.Body.Close()
 
 	return io.ReadAll(r.Body)
-}
-
-func (bot *TgClient) ChangeSchemeHTTP() {
-	bot.scheme = "http"
 }
 
 func (bot *TgClient) makeRequestURL(botMethod string, q url.Values) *url.URL {
