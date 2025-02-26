@@ -37,6 +37,8 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	w.Header().Set(contentType, jsonType)
+
 	reqData, err := io.ReadAll(r.Body)
 
 	if err != nil {

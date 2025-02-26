@@ -9,6 +9,11 @@ import (
 	"strconv"
 )
 
+const (
+	contentType = "Content-Type"
+	jsonType    = "application/json"
+)
+
 type ChatHandler struct {
 	userRepo UserRepo
 }
@@ -25,6 +30,8 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	w.Header().Set(contentType, jsonType)
 
 	data, err := io.ReadAll(r.Body)
 

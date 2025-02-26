@@ -29,6 +29,14 @@ func New(client botService.TgClient) *UpdatesHandler {
 }
 
 func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse := dto.NewApiErrResponse(methodError, fmt.Sprintf(methodErrorDescription, r.Method), []string{})
+
+		WriteInResponse(w, http.StatusMethodNotAllowed, errorResponse)
+
+		return
+	}
+
 	userUpdates, err := io.ReadAll(r.Body)
 
 	if err != nil {
@@ -47,17 +55,16 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 		errorResponse := dto.NewApiErrResponse(jsonError, err.Error(), []string{})
 
 		WriteInResponse(w, http.StatusBadRequest, errorResponse)
-
-	} else if r.Method != http.MethodPost {
-		errorResponse := dto.NewApiErrResponse(methodError, fmt.Sprintf(methodErrorDescription, r.Method), []string{})
-
-		WriteInResponse(w, http.StatusBadRequest, errorResponse)
-
 	} else {
+
 		WriteInResponse(w, http.StatusOK, nil)
 
-		for _, userID := range linkUpdate.TgChatIds {
-			s.tgClient.SendMessage(userID, linkUpdate.Description)
+		for _, userID := range linkUpdate.TgChatIds { // переписать на горутины
+			err := s.tgClient.SendMessage(userID, linkUpdate.Description)
+
+			if err != nil {
+				log.Println("Ошибка при отправке обновлений пользователю")
+			}
 		}
 	}
 }
@@ -69,9 +76,8 @@ func WriteInResponse(w http.ResponseWriter, HTTPStatus int, data any) {
 		return
 	}
 
-	w.Header().Set(contentType, jsonType)
-
 	if data != nil {
+		w.Header().Set(contentType, jsonType)
 
 		err := json.NewEncoder(w).Encode(data)
 

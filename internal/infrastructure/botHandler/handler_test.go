@@ -5,27 +5,24 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"io"
 	"linkTraccer/internal/application/botService/mocks"
 	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/infrastructure/botHandler"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
-const (
-	updatesPath = "/updates"
-)
+var randomStrBytes = []byte("hello word")
 
 var testJson = &dto.ApiErrResponse{
 	Description: "ошибка для тестирования",
 	Code:        "400",
 }
 
-var validJson = &dto.LinkUpdate{
-	ID:          15,
+var linkUpdate = &dto.LinkUpdate{
+	ID:          1,
 	URL:         "google.com",
 	Description: "Новое уведомление",
 	TgChatIds:   []int{1, 2},
@@ -41,24 +38,27 @@ func TestUpdateServer_WriteResponseData(t *testing.T) {
 	tests := []TestCase{
 		{
 			codeHTTP: 200,
-			data:     testJson,
+			data:     nil,
 		},
 		{
 			codeHTTP: 400,
-			data:     nil,
+			data:     testJson,
 		},
 	}
 
 	for _, test := range tests {
-		response := httptest.NewRecorder()
+		w := httptest.NewRecorder()
+
+		botHandler.WriteInResponse(w, test.codeHTTP, test.data)
+		assert.Equal(t, test.codeHTTP, w.Code)
 
 		if test.data != nil {
-			botHandler.WriteInResponse(response, test.codeHTTP, test.data) // исправить этот тест
-		} else {
-			botHandler.WriteInResponse(response, test.codeHTTP, nil)
-		}
+			respJSON := &dto.ApiErrResponse{}
+			respData, _ := io.ReadAll(w.Body)
 
-		assert.Equal(t, test.codeHTTP, response.Code)
+			json.Unmarshal(respData, respJSON)
+			assert.Equal(t, test.data, respJSON)
+		}
 	}
 }
 
@@ -67,77 +67,38 @@ func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 
 	tgClient.On("SendMessage", mock.Anything, mock.Anything).Return(nil)
 
-	updateHandler := botHandler.New(tgClient)
-	client := http.Client{Timeout: time.Second * 10}
-	mux := http.NewServeMux()
-
-	mux.HandleFunc(updatesPath, updateHandler.HandleLinkUpdates)
-
-	testServer := httptest.NewServer(mux)
-
-	defer testServer.Close()
-
-	byteJSON, _ := json.Marshal(validJson)
+	botHandler := botHandler.New(tgClient)
+	linkUpdateJson, _ := json.Marshal(linkUpdate)
 
 	type testCase struct {
-		name    string
-		method  string
-		body    *bytes.Buffer
-		data    []byte
-		correct bool
+		name       string
+		r          *http.Request
+		httpStatus int
 	}
 
 	tests := []testCase{
 		{
-			name:    "Тест на недопустимый метод сервера",
-			method:  http.MethodGet,
-			body:    nil,
-			data:    []byte("Hello word"),
-			correct: false,
+			name:       "Тест на недопустимый метод сервера",
+			r:          &http.Request{Method: http.MethodGet},
+			httpStatus: http.StatusMethodNotAllowed,
 		},
 		{
-			name:    "Тест на недопустимый метод сервера",
-			method:  http.MethodPut,
-			body:    bytes.NewBuffer(byteJSON),
-			data:    byteJSON,
-			correct: false,
+			name:       "Тест на передачу не валидных данных",
+			r:          &http.Request{Method: http.MethodPost, Body: io.NopCloser(bytes.NewBuffer(randomStrBytes))},
+			httpStatus: http.StatusBadRequest,
 		},
 		{
-			name:    "Корректный тест",
-			method:  http.MethodPost,
-			body:    bytes.NewBuffer(byteJSON),
-			data:    byteJSON,
-			correct: true,
+			name:       "Тест на передачу валидных данных",
+			r:          &http.Request{Method: http.MethodPost, Body: io.NopCloser(bytes.NewBuffer(linkUpdateJson))},
+			httpStatus: http.StatusOK,
 		},
 	}
 
-	var err error
-	var req *http.Request
-	var resp *http.Response
-
 	for _, test := range tests {
+		w := httptest.NewRecorder()
 
-		if test.body == nil {
-			req, err = http.NewRequest(test.method, testServer.URL+updatesPath, nil)
-		} else {
-			req, err = http.NewRequest(test.method, testServer.URL+updatesPath, test.body)
-		}
+		botHandler.HandleLinkUpdates(w, test.r)
 
-		if err != nil {
-			log.Println("при создании запроса, возникла ошибка")
-			continue
-		}
-
-		resp, err = client.Do(req)
-
-		if err != nil {
-			log.Println("ошибка при выполнении запроса клиентом")
-		}
-
-		if test.correct {
-			assert.Equal(t, http.StatusOK, resp.StatusCode)
-		} else {
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-		}
+		assert.Equal(t, test.httpStatus, w.Code)
 	}
 }
