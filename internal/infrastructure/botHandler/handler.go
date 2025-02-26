@@ -57,7 +57,7 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 		WriteInResponse(w, http.StatusOK, nil)
 
 		for _, userID := range linkUpdate.TgChatIds {
-			go s.tgClient.SendMessage(userID, linkUpdate.Description)
+			s.tgClient.SendMessage(userID, linkUpdate.Description)
 		}
 	}
 }

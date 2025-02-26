@@ -3,14 +3,11 @@ package scrapperHandlers
 import (
 	"encoding/json"
 	"io"
-	"linkTraccer/internal/application/scrapperService"
 	"linkTraccer/internal/domain/dto"
 	"log"
 	"net/http"
 	"strconv"
 )
-
-type UserRepo = scrapperService.UserRepo
 
 type ChatHandler struct {
 	userRepo UserRepo
@@ -56,8 +53,7 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 
 	if userId < 0 {
 		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", err.Error(), []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", "id < 0", []string{}))
 
 		if err != nil {
 			log.Println("Ошибка при формировании json ответа")
@@ -71,7 +67,7 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 		if c.userRepo.UserExist(userId) {
 			w.WriteHeader(http.StatusBadRequest)
 
-			err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", err.Error(), []string{}))
+			err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", "id exist", []string{}))
 
 			if err != nil {
 				log.Println("Ошибка при формировании json ответа")
@@ -84,7 +80,7 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 	case http.MethodDelete:
 
 		if err := c.userRepo.DeleteUser(userId); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(http.StatusNotFound)
 
 			err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", err.Error(), []string{}))
 

@@ -88,8 +88,8 @@ func (f *FileStorage) AllUserLinks(user User) ([]Link, error) {
 
 	defer f.mu.Unlock()
 
-	if _, ok := f.UserToLinks[user]; !ok || len(f.UserToLinks[user]) == 0 {
-		return nil, NewErrWithStorage(userNotSaveLink)
+	if _, ok := f.UserToLinks[user]; !ok {
+		return nil, NewErrWithStorage(userNotRegistered)
 	}
 
 	links := make([]Link, 0, len(f.UserToLinks[user]))
@@ -184,4 +184,21 @@ func (f *FileStorage) DeleteUser(userID User) error {
 	delete(f.UserToLinks, userID)
 
 	return nil
+}
+
+// Нжно протестировать
+
+func (f *FileStorage) UserTrackLink(user User, link Link) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if _, ok := f.UserToLinks[user]; !ok {
+		return false
+	}
+
+	if _, ok := f.UserToLinks[user][link]; !ok {
+		return false
+	}
+
+	return true
 }

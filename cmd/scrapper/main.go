@@ -1,5 +1,11 @@
 package main
 
+import (
+	"encoding/json"
+	"fmt"
+	"linkTraccer/internal/domain/scrapper"
+)
+
 func main() {
 
 	//stackClient := stackoverflow.NewClient("api.stackexchange.com", &http.Client{Timeout: time.Second * 10})
@@ -17,4 +23,19 @@ func main() {
 	//
 	//fmt.Println(gitClient.LinkState("https://github.com/orlov4919/test"))
 
+	resp := scrapper.LinkResponse{
+		ID:      5,
+		URL:     "hello",
+		Tags:    []string{"a", "b"},
+		Filters: []string{"a", "b"},
+	}
+
+	list := &scrapper.ListLinksResponse{
+		Links: []scrapper.LinkResponse{resp},
+		Size:  1,
+	}
+
+	data, _ := json.Marshal(list)
+
+	fmt.Println(string(data))
 }
