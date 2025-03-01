@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io"
 	"linkTraccer/internal/domain/scrapper"
-	"linkTraccer/internal/infrastructure/database/file"
+	"linkTraccer/internal/infrastructure/database/file/userStorage"
 	"linkTraccer/internal/infrastructure/scrapperHandlers"
 	"linkTraccer/internal/infrastructure/scrapperHandlers/mocks"
 	"net/http"
@@ -42,7 +42,7 @@ func TestLinkHandler_GetMethodHandler(t *testing.T) {
 	userRepo := mocks.NewUserRepo(t)
 	stackClient, gitClient := mocks.NewSiteClient(t), mocks.NewSiteClient(t)
 
-	userRepo.On("AllUserLinks", errID).Return(nil, file.NewErrWithStorage("нет id"))
+	userRepo.On("AllUserLinks", errID).Return(nil, userStorage.NewErrWithStorage("нет id"))
 	userRepo.On("AllUserLinks", goodID).Return([]link{expectedLink}, nil)
 	userRepo.On("AllUserLinks", regID).Return([]link{}, nil)
 
@@ -251,7 +251,7 @@ func TestLinkHandler_HandleLinksChanges(t *testing.T) {
 
 	//userRepo.On("UserTrackLink", goodID, expectedLink).Return(true)
 	//userRepo.On("UserTrackLink", goodID, unexpectedLink).Return(false)
-	userRepo.On("AllUserLinks", errID).Return(nil, file.NewErrWithStorage("нет ссылок"))
+	userRepo.On("AllUserLinks", errID).Return(nil, userStorage.NewErrWithStorage("нет ссылок"))
 
 	linkHandler := scrapperHandlers.NewLinkHandler(userRepo, stackClient)
 

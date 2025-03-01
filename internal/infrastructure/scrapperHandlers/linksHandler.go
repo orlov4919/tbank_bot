@@ -158,7 +158,7 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqDa
 	if flag {
 		w.WriteHeader(http.StatusOK)
 
-		err = l.userRepo.TrackLink(userID, addLinkRequest.Link)
+		err = l.userRepo.TrackLink(userID, addLinkRequest.Link, "") // Добавить состояние константой
 
 		if err != nil {
 			log.Println("При добавлении ссылки произошла ошибка")
@@ -178,6 +178,7 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqDa
 		}
 
 	} else {
+
 		w.WriteHeader(http.StatusBadRequest)
 
 		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("link err", "link not support", []string{}))

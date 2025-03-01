@@ -1,9 +1,9 @@
-package file_test
+package userStorage_test
 
 import (
 	"github.com/stretchr/testify/assert"
 	"linkTraccer/internal/domain/scrapper"
-	"linkTraccer/internal/infrastructure/database/file"
+	"linkTraccer/internal/infrastructure/database/file/userStorage"
 	"testing"
 )
 
@@ -113,7 +113,7 @@ func TestFileStorage_TrackLink(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, test := range tests {
 		err := fileStorage.TrackLink(test.userID, test.userLink, test.linkState)
@@ -161,7 +161,7 @@ func TestFileStorage_UntrackLink(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
@@ -314,7 +314,7 @@ func TestFileStorage_GetAllUserLinks(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
@@ -397,7 +397,7 @@ func TestFileStorage_GetUsersWhoTrackLink(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
@@ -473,7 +473,7 @@ func TestFileStorage_AllLinks(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
@@ -532,7 +532,7 @@ func TestFileStorage_LinkState(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
@@ -608,7 +608,7 @@ func TestFileStorage_ChangeLinkState(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
@@ -686,7 +686,7 @@ func TestFileStorage_UserExist(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
@@ -746,7 +746,7 @@ func TestFileStorage_DeleteUser(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)
@@ -853,7 +853,7 @@ func TestFileStorage_UserTrackLink(t *testing.T) {
 		},
 	}
 
-	fileStorage := file.NewFileStorage()
+	fileStorage := userStorage.NewFileStorage()
 
 	for _, data := range dataSlice {
 		fileStorage.TrackLink(data.userID, data.userLink, data.linkState)

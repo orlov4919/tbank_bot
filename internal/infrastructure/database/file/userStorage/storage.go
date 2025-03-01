@@ -1,4 +1,4 @@
-package file
+package userStorage
 
 import (
 	"linkTraccer/internal/domain/scrapper"
@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	userAlreadySaveLink = "пользователь уже сохранял эту ссылку"
-	userNotSaveLink     = "пользователь не сохранял эту ссылку"
-	userNotRegistered   = "пользователь не регистрировался"
+	userAlreadyRegistered = "пользователь уже регистрировался"
+	userAlreadySaveLink   = "пользователь уже сохранял эту ссылку"
+	userNotSaveLink       = "пользователь не сохранял эту ссылку"
+	userNotRegistered     = "пользователь не регистрировался"
 )
 
 type User = scrapper.User
@@ -31,13 +32,26 @@ func NewFileStorage() *FileStorage {
 	}
 }
 
+func (f *FileStorage) RegUser(userID User) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if _, ok := f.UserToLinks[userID]; ok {
+		return NewErrWithStorage(userAlreadyRegistered)
+	}
+
+	f.UserToLinks[userID] = make(map[Link]struct{})
+
+	return nil
+}
+
 func (f *FileStorage) TrackLink(userID User, userLink Link, initialState LinkState) error {
 	f.mu.Lock()
 
 	defer f.mu.Unlock()
 
 	if _, ok := f.UserToLinks[userID]; !ok {
-		f.UserToLinks[userID] = make(map[Link]struct{})
+		return NewErrUserNotRegistered(userID)
 	}
 
 	if _, ok := f.LinkToUsers[userLink]; !ok {

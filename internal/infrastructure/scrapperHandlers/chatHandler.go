@@ -2,7 +2,7 @@ package scrapperHandlers
 
 import (
 	"encoding/json"
-	"io"
+	"github.com/gorilla/mux"
 	"linkTraccer/internal/domain/dto"
 	"log"
 	"net/http"
@@ -33,19 +33,8 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set(contentType, jsonType)
 
-	data, err := io.ReadAll(r.Body)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("ошибка тела запроса", err.Error(), []string{}))
-
-		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
-		}
-		return
-	}
-
-	userId, err := strconv.Atoi(string(data))
+	data := mux.Vars(r)["id"]
+	userId, err := strconv.Atoi(data)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -83,6 +72,12 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 			return
 		} else {
 			w.WriteHeader(http.StatusOK)
+
+			err := c.userRepo.RegUser(userId)
+
+			if err != nil {
+				log.Println("Хранилище не согласовано")
+			}
 		}
 	case http.MethodDelete:
 

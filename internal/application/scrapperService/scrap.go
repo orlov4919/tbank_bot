@@ -12,10 +12,11 @@ type Link = scrapper.Link
 type LinkState = scrapper.LinkState
 
 type UserRepo interface {
+	RegUser(userID User) error
 	UserTrackLink(user User, link Link) bool
 	DeleteUser(userID User) error
 	UserExist(userID User) bool
-	TrackLink(userID User, userLink Link) error
+	TrackLink(userID User, userLink Link, initialState LinkState) error
 	UntrackLink(user User, link Link) error
 	AllUserLinks(user User) ([]Link, error)
 	AllLinks() []Link
@@ -38,6 +39,10 @@ type Scrapper struct {
 	siteClients []SiteClient
 	botClient   BotClient
 }
+
+const (
+	initialLinkState = ""
+)
 
 func New(userRepo UserRepo, botClient BotClient, siteClients ...SiteClient) *Scrapper {
 	return &Scrapper{
@@ -66,14 +71,21 @@ func (scrap *Scrapper) CheckLinkUpdates() {
 					continue
 				}
 
-				actualLinkState, err := scrap.userRepo.LinkState(link)
+				savedLinkState, err := scrap.userRepo.LinkState(link)
 
 				if err != nil {
 					log.Println("При получении состояния ссылки из хранилища, произошла ошибка")
 					continue
 				}
 
-				if linkState != actualLinkState {
+				if savedLinkState == initialLinkState {
+					err := scrap.userRepo.ChangeLinkState(link, linkState)
+
+					if err != nil {
+						log.Println("Ошибка при изменении состояния ссылки")
+					}
+
+				} else if linkState != savedLinkState {
 
 					err := scrap.userRepo.ChangeLinkState(link, linkState)
 
@@ -82,17 +94,17 @@ func (scrap *Scrapper) CheckLinkUpdates() {
 					} else {
 						log.Println("Ссылка получила новое состояние")
 
-						//scrap.botClient.SendLinkUpdates(&dto.LinkUpdate{
-						//	ID:          1,
-						//	URL:         link,
-						//	Description: "пришло новое обновление по ссылке",
-						//	TgChatIds:   scrap.userRepo.UsersWhoTrackLink(link),
-						//})
+						scrap.botClient.SendLinkUpdates(&dto.LinkUpdate{
+							ID:          1,
+							URL:         link,
+							Description: "пришло новое обновление по ссылке",
+							TgChatIds:   scrap.userRepo.UsersWhoTrackLink(link),
+						})
 					}
 				}
 			}
 		}
 
-		time.Sleep(time.Minute * 5)
+		time.Sleep(time.Minute)
 	}
 }

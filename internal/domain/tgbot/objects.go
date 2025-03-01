@@ -15,3 +15,5 @@ type User struct {
 }
 
 type Updates = []Update
+
+type Link = string
