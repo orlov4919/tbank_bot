@@ -110,7 +110,7 @@ func LinkRemoveHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, 
 		}
 
 	default:
-		if err := ctxStore.AddUrl(id, event); err != nil {
+		if err := ctxStore.AddURL(id, event); err != nil {
 			return err
 		}
 
@@ -169,7 +169,7 @@ func AddLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id 
 		}
 
 	default:
-		if err := ctxStore.AddUrl(id, event); err != nil {
+		if err := ctxStore.AddURL(id, event); err != nil {
 			return err
 		}
 

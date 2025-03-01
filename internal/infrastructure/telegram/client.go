@@ -31,21 +31,16 @@ type TgClient struct {
 	client   HTTPClient
 }
 
-func NewClient(client HTTPClient, host string) *TgClient {
-
+func NewClient(client HTTPClient, token, host string) *TgClient {
 	return &TgClient{
-		scheme: "https",
-		host:   host,
-		client: client,
+		scheme:   "https",
+		host:     host,
+		client:   client,
+		basePath: "bot" + token,
 	}
 }
 
-func (client *TgClient) SetBotToken(token string) {
-	client.basePath = "bot" + token
-}
-
 func (bot *TgClient) HandleUsersUpdates(offset, limit int) (Updates, error) {
-
 	if limit < 0 {
 		return nil, NewErrNegativeLimit(limit)
 	}
@@ -74,7 +69,6 @@ func (bot *TgClient) HandleUsersUpdates(offset, limit int) (Updates, error) {
 }
 
 func (bot *TgClient) SendMessage(userID int, text string) error {
-
 	sendMessageURL := bot.makeRequestURL(sendMessage, nil)
 
 	data := &SendMessage{
@@ -104,7 +98,6 @@ func (bot *TgClient) SendMessage(userID int, text string) error {
 }
 
 func RequestToAPI(client HTTPClient, url *url.URL, httpMethod string, data io.Reader) ([]byte, error) {
-
 	req, err := http.NewRequest(httpMethod, url.String(), data)
 
 	if err != nil {

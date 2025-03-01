@@ -2,37 +2,37 @@ package main
 
 import (
 	"linkTraccer/internal/application/botService"
-	"linkTraccer/internal/infrastructure/botHandler"
-	"linkTraccer/internal/infrastructure/database/file/contextStorage"
-	"linkTraccer/internal/infrastructure/scrapperClient"
+	"linkTraccer/internal/infrastructure/botconfig"
+	"linkTraccer/internal/infrastructure/bothandler"
+	"linkTraccer/internal/infrastructure/database/file/contextstorage"
+	"linkTraccer/internal/infrastructure/scrapperclient"
 	"linkTraccer/internal/infrastructure/telegram"
+	"log"
 	"net/http"
 	"time"
 )
 
 const (
-	pathBotConfig    = "../../configs/bot/config.toml"
-	host             = "api.telegram.org"
-	errChanSize      = 10000
-	updateServerAddr = ":8080"
+	telegramBotAPI = "api.telegram.org"
 )
 
 func main() {
+	config, err := botconfig.New()
 
-	tgClient := telegram.NewClient(&http.Client{Timeout: time.Minute}, "api.telegram.org")
-	tgClient.SetBotToken("7723330730:AAEKTKDWzoEwWK4DrLqWC4q-7LsqwXfOMUU") // убрать эту ерунду
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	ctxStore := contextStorage.New()
-
-	scrapClient := scrapperClient.New(&http.Client{Timeout: time.Minute}, "localhost:9090")
-
+	tgClient := telegram.NewClient(&http.Client{Timeout: time.Minute}, config.Token, telegramBotAPI)
+	ctxStore := contextstorage.New()
+	scrapClient := scrapperclient.New(&http.Client{Timeout: time.Minute}, config.ScrapperServerUrl)
 	tgBot := botService.New(tgClient, scrapClient, ctxStore, 5)
 
 	go tgBot.Start()
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/updates", botHandler.New(tgClient).HandleLinkUpdates)
+	mux.HandleFunc("/updates", bothandler.New(tgClient).HandleLinkUpdates)
 
-	http.ListenAndServe(":8080", mux)
+	http.ListenAndServe(config.BotServerPort, mux)
 }

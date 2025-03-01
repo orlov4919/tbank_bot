@@ -1,1 +1,3 @@
 token = "7723330730:AAEKTKDWzoEwWK4DrLqWC4q-7LsqwXfOMUU"
+scrapper_server_url = "localhost:9090"
+bot_server_port = ":8080"

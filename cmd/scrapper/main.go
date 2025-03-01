@@ -1,13 +1,15 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
+	"github.com/go-co-op/gocron"
 	"linkTraccer/internal/application/scrapperService"
-	"linkTraccer/internal/infrastructure/botClient"
-	"linkTraccer/internal/infrastructure/database/file/userStorage"
-	"linkTraccer/internal/infrastructure/scrapperHandlers"
-	"linkTraccer/internal/infrastructure/siteClients/gitHub"
-	"linkTraccer/internal/infrastructure/siteClients/stackoverflow"
+	"linkTraccer/internal/infrastructure/botclient"
+	"linkTraccer/internal/infrastructure/database/file/userstorage"
+	"linkTraccer/internal/infrastructure/scrapperconfig"
+	"linkTraccer/internal/infrastructure/scrapperhandlers"
+	"linkTraccer/internal/infrastructure/siteclients/github"
+	"linkTraccer/internal/infrastructure/siteclients/stackoverflow"
+	"log"
 	"net/http"
 	"time"
 )
@@ -18,25 +20,36 @@ const (
 )
 
 func main() {
+	config, err := scrapperconfig.New()
+
+	if err != nil {
+		log.Println(err)
+		log.Fatal("Ошибка при ините конфига")
+	}
 
 	stackClient := stackoverflow.NewClient(stackOverflowAPI, &http.Client{Timeout: time.Second * 10})
-	botClient := botClient.New("localhost:8080", &http.Client{Timeout: time.Second * 10})
-	userRepo := userStorage.NewFileStorage()
-	gitClient := gitHub.NewClient("api.github.com",
-		"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",
-		&http.Client{Timeout: time.Minute})
+	tgBotClient := botclient.New(config.TgBotServerURL, &http.Client{Timeout: time.Second * 10})
+	userRepo := userstorage.NewFileStorage()
+	gitClient := github.NewClient(gitHubApi, config.GitHubToken, &http.Client{Timeout: time.Minute})
 
-	scrapper := scrapperService.New(userRepo, botClient, stackClient, gitClient)
+	scrapper := scrapperService.New(userRepo, tgBotClient, stackClient, gitClient)
 
-	go scrapper.CheckLinkUpdates()
+	s := gocron.NewScheduler(time.UTC)
 
-	mux := mux.NewRouter()
-	linksHandler := scrapperHandlers.NewLinkHandler(userRepo, stackClient, gitClient)
-	chatHandler := scrapperHandlers.NewChatHandler(userRepo)
+	_, err = s.Every(time.Minute).Do(scrapper.CheckLinkUpdates)
 
-	mux.HandleFunc("/tg-chat/{id}", chatHandler.HandleChatChanges)
+	if err != nil {
+		log.Println("Ошибкаааа")
+	}
+
+	s.StartAsync()
+
+	mux := http.NewServeMux()
+	linksHandler := scrapperhandlers.NewLinkHandler(userRepo, stackClient, gitClient)
+	chatHandler := scrapperhandlers.NewChatHandler(userRepo)
+
+	mux.HandleFunc("/tg-chat/", chatHandler.HandleChatChanges)
 	mux.HandleFunc("/links", linksHandler.HandleLinksChanges)
 
-	http.ListenAndServe(":9090", mux)
-
+	http.ListenAndServe(config.ScrapperServerPort, mux)
 }

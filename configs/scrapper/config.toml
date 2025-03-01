@@ -1,3 +1,3 @@
 tgbot_server_url = "localhost:8080"
 scrapper_server_port = ":9090"
-github_toke = "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"
+github_token = "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"
