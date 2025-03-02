@@ -45,7 +45,6 @@ var errForTest = errors.New("ошибка для теста")
 var responseWithErr = &http.Response{StatusCode: http.StatusBadRequest}
 var respWithOkStatus = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(dataToBody))}
 var respWithUpdates = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(updateData))}
-var respTgDefaultAnswer = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(defTgAnswer))}
 
 func TestRequestToAPI(t *testing.T) {
 	badClient := mocks.NewHTTPClient(t)
@@ -170,6 +169,8 @@ func TestTgClient_HandleUsersUpdates(t *testing.T) {
 }
 
 func TestTgClient_SendMessage(t *testing.T) {
+	respTgDefaultAnswer := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(defTgAnswer))}
+
 	apiErrClient := mocks.NewHTTPClient(t)
 	wrongBodyClient := mocks.NewHTTPClient(t)
 	goodClient := mocks.NewHTTPClient(t)
@@ -223,6 +224,8 @@ func TestTgClient_SendMessage(t *testing.T) {
 }
 
 func TestTgClient_SetBotCommands(t *testing.T) {
+	respTgDefaultAnswer := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(defTgAnswer))}
+
 	apiErrClient := mocks.NewHTTPClient(t)
 	wrongBodyClient := mocks.NewHTTPClient(t)
 	goodClient := mocks.NewHTTPClient(t)
