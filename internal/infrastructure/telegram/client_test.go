@@ -2,6 +2,7 @@ package telegram_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"linkTraccer/internal/domain/tgbot"
@@ -38,7 +39,7 @@ var update = []tgbot.Update{
 
 var dataToBody = []byte("Hello word")
 var updateData = []byte(`{"result" : [{"update_id" : 1}]}`)
-var defTgAnswer = []byte(`{"ok" : true}`)
+var defTgAnswer, _ = json.Marshal(telegram.DefaultServerAnswer{Ok: true})
 
 var errForTest = errors.New("ошибка для теста")
 var responseWithErr = &http.Response{StatusCode: http.StatusBadRequest}
