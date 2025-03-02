@@ -83,7 +83,7 @@ func (git *GitClient) CanTrack(link Link) bool {
 
 	defer resp.Body.Close()
 
-	return resp.StatusCode != http.StatusOK
+	return resp.StatusCode == http.StatusOK
 }
 
 func (git *GitClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string) bool {

@@ -1,9 +1,9 @@
-package scrapperService
+package scrapperservice
 
 import (
 	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/domain/scrapper"
-	"log"
+	"log/slog"
 )
 
 type User = scrapper.User
@@ -37,26 +37,25 @@ type Scrapper struct {
 	userRepo    UserRepo
 	siteClients []SiteClient
 	botClient   BotClient
+	log         *slog.Logger
 }
 
 const (
 	initialLinkState = ""
 )
 
-func New(userRepo UserRepo, botClient BotClient, siteClients ...SiteClient) *Scrapper {
+func New(userRepo UserRepo, botClient BotClient, log *slog.Logger, siteClients ...SiteClient) *Scrapper {
 	return &Scrapper{
 		userRepo:    userRepo,
 		botClient:   botClient,
 		siteClients: siteClients,
+		log:         log,
 	}
 }
 
 func (scrap *Scrapper) CheckLinkUpdates() {
-
 	for _, link := range scrap.userRepo.AllLinks() {
-
 		for _, siteClient := range scrap.siteClients {
-
 			if !siteClient.CanTrack(link) {
 				continue
 			}
@@ -64,14 +63,14 @@ func (scrap *Scrapper) CheckLinkUpdates() {
 			linkState, err := siteClient.LinkState(link)
 
 			if err != nil {
-				log.Println("При получении состояни ссылки от клиента, произошла ошибка")
+				scrap.log.Info("при получении состояния ссылки произошла ошибка", "err", err.Error())
 				continue
 			}
 
 			savedLinkState, err := scrap.userRepo.LinkState(link)
 
 			if err != nil {
-				log.Println("При получении состояния ссылки из хранилища, произошла ошибка")
+				scrap.log.Info("ошибка при получении состояния ссылки из хранилища", "err", err.Error())
 				continue
 			}
 
@@ -79,24 +78,28 @@ func (scrap *Scrapper) CheckLinkUpdates() {
 				err := scrap.userRepo.ChangeLinkState(link, linkState)
 
 				if err != nil {
-					log.Println("Ошибка при изменении состояния ссылки")
+					scrap.log.Info("ошибка при изменении состояния ссылки", "err", err.Error())
 				}
 
+				scrap.log.Info("ссылка " + link + " получила начальное состояние")
 			} else if linkState != savedLinkState {
-
-				log.Println("Новое состояние у ссылки")
+				scrap.log.Info("ссылка " + link + " получила новое состояние")
 
 				err := scrap.userRepo.ChangeLinkState(link, linkState)
 
 				if err != nil {
-					log.Println("Ошибка при изменении состояния ссылки")
-				} else {
+					scrap.log.Info("ошибка при изменении состояния ссылки", "err", err.Error())
+					continue
+				}
 
-					scrap.botClient.SendLinkUpdates(&dto.LinkUpdate{
-						ID:          1,
-						URL:         link,
-						Description: "пришло новое обновление по ссылке",
-						TgChatIds:   scrap.userRepo.UsersWhoTrackLink(link)})
+				err = scrap.botClient.SendLinkUpdates(&dto.LinkUpdate{
+					ID:          1,
+					URL:         link,
+					Description: "пришло новое обновление по ссылке",
+					TgChatIDs:   scrap.userRepo.UsersWhoTrackLink(link)})
+
+				if err != nil {
+					scrap.log.Info("ошибка при отправке обновления ссылки", "err", err.Error())
 				}
 			}
 		}

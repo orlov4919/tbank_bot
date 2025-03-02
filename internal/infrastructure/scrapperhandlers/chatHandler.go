@@ -3,7 +3,7 @@ package scrapperhandlers
 import (
 	"encoding/json"
 	"linkTraccer/internal/domain/dto"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,11 +16,13 @@ const (
 
 type ChatHandler struct {
 	userRepo UserRepo
+	log      *slog.Logger
 }
 
-func NewChatHandler(repo UserRepo) *ChatHandler {
+func NewChatHandler(repo UserRepo, log *slog.Logger) *ChatHandler {
 	return &ChatHandler{
 		userRepo: repo,
+		log:      log,
 	}
 }
 
@@ -38,10 +40,10 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("неправильный формат данных в теле", err.Error(), []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("неправильный формат данных в теле", err.Error(), []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			c.log.Debug("ошибка при энкодинге тела", "err", err.Error())
 		}
 
 		return
@@ -49,10 +51,10 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 
 	if userID < 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", "id < 0", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("id error", "id < 0", []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			c.log.Debug("ошибка при формировании json ответа", "err", err.Error())
 		}
 
 		return
@@ -63,10 +65,10 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 		if c.userRepo.UserExist(userID) {
 			w.WriteHeader(http.StatusBadRequest)
 
-			err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", "id exist", []string{}))
+			err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("id error", "id exist", []string{}))
 
 			if err != nil {
-				log.Println("Ошибка при формировании json ответа")
+				c.log.Debug("ошибка при формировании json ответа", "err", err.Error())
 			}
 
 			return
@@ -74,20 +76,18 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 
 		w.WriteHeader(http.StatusOK)
 
-		err := c.userRepo.RegUser(userID)
-
-		if err != nil {
-			log.Println("Хранилище не согласовано")
+		if err := c.userRepo.RegUser(userID); err != nil {
+			c.log.Info("ошибка при регистрации пользователя", "err", err.Error())
 		}
 
 	case http.MethodDelete:
 		if err := c.userRepo.DeleteUser(userID); err != nil {
 			w.WriteHeader(http.StatusNotFound)
 
-			err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", err.Error(), []string{}))
+			err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("id error", err.Error(), []string{}))
 
 			if err != nil {
-				log.Println("Ошибка при формировании json ответа")
+				c.log.Debug("ошибка при формировании json ответа", "err", err.Error())
 			}
 		} else {
 			w.WriteHeader(http.StatusOK)

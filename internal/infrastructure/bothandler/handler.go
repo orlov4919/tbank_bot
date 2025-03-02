@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"linkTraccer/internal/application/botService"
+	"linkTraccer/internal/application/botservice"
 	"linkTraccer/internal/domain/dto"
-	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -21,18 +21,22 @@ const (
 )
 
 type UpdatesHandler struct {
-	tgClient botService.TgClient
+	tgClient botservice.TgClient
+	log      *slog.Logger
 }
 
-func New(client botService.TgClient) *UpdatesHandler {
-	return &UpdatesHandler{tgClient: client}
+func New(client botservice.TgClient, log *slog.Logger) *UpdatesHandler {
+	return &UpdatesHandler{
+		tgClient: client,
+		log:      log,
+	}
 }
 
 func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		errorResponse := dto.NewApiErrResponse(methodError, fmt.Sprintf(methodErrorDescription, r.Method), []string{})
+		errorResponse := dto.NewAPIErrResponse(methodError, fmt.Sprintf(methodErrorDescription, r.Method), []string{})
 
-		WriteInResponse(w, http.StatusMethodNotAllowed, errorResponse)
+		s.WriteInResponse(w, http.StatusMethodNotAllowed, errorResponse)
 
 		return
 	}
@@ -40,9 +44,9 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 	bodyData, err := io.ReadAll(r.Body)
 
 	if err != nil {
-		errorResponse := dto.NewApiErrResponse(ReadBodyError, err.Error(), []string{})
+		errorResponse := dto.NewAPIErrResponse(ReadBodyError, err.Error(), []string{})
 
-		WriteInResponse(w, http.StatusBadRequest, errorResponse)
+		s.WriteInResponse(w, http.StatusBadRequest, errorResponse)
 
 		return
 	}
@@ -52,23 +56,23 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 	linkUpdate := &dto.LinkUpdate{}
 
 	if err = json.Unmarshal(bodyData, linkUpdate); err != nil {
-		errorResponse := dto.NewApiErrResponse(jsonError, err.Error(), []string{})
+		errorResponse := dto.NewAPIErrResponse(jsonError, err.Error(), []string{})
 
-		WriteInResponse(w, http.StatusBadRequest, errorResponse)
+		s.WriteInResponse(w, http.StatusBadRequest, errorResponse)
 	} else {
-		WriteInResponse(w, http.StatusOK, nil)
+		s.WriteInResponse(w, http.StatusOK, nil)
 
-		for _, userID := range linkUpdate.TgChatIds { // переписать на горутины
-			err := s.tgClient.SendMessage(userID, linkUpdate.Description)
+		for _, userID := range linkUpdate.TgChatIDs { // переписать на горутины
+			err := s.tgClient.SendMessage(userID, linkUpdate.Description+": "+linkUpdate.URL)
 
 			if err != nil {
-				log.Println("Ошибка при отправке обновлений пользователю")
+				s.log.Debug("ошибка при отправке обновлений пользователю", "err", err.Error())
 			}
 		}
 	}
 }
 
-func WriteInResponse(w http.ResponseWriter, httpStatus int, data any) {
+func (s *UpdatesHandler) WriteInResponse(w http.ResponseWriter, httpStatus int, data any) {
 	w.WriteHeader(httpStatus)
 
 	if httpStatus == http.StatusOK {
@@ -81,7 +85,7 @@ func WriteInResponse(w http.ResponseWriter, httpStatus int, data any) {
 		err := json.NewEncoder(w).Encode(data)
 
 		if err != nil {
-			log.Println(fmt.Errorf("при формировании json ответа произошла ошибка: %w", err))
+			s.log.Debug("при формировании json ответа произошла ошибка", "err", err.Error())
 		}
 	}
 }

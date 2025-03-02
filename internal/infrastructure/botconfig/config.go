@@ -4,7 +4,7 @@ import "github.com/BurntSushi/toml"
 
 type Config struct {
 	Token             string `toml:"token"`
-	ScrapperServerUrl string `toml:"scrapper_server_url"`
+	ScrapperServerURL string `toml:"scrapper_server_url"`
 	BotServerPort     string `toml:"bot_server_port"`
 }
 

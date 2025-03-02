@@ -19,7 +19,7 @@ var linkUpdate = &dto.LinkUpdate{
 	ID:          1,
 	URL:         "stackoverflow.com",
 	Description: "Тема с вопросом обновилась",
-	TgChatIds:   []int{2, 8, 12, 15},
+	TgChatIDs:   []int{2, 8, 12, 15},
 }
 
 func TestBotClient_SendLinkUpdates(t *testing.T) {

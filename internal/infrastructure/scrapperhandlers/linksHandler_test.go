@@ -48,7 +48,7 @@ func TestLinkHandler_GetMethodHandler(t *testing.T) {
 	userRepo.On("AllUserLinks", goodID).Return([]link{expectedLink}, nil)
 	userRepo.On("AllUserLinks", regID).Return([]link{}, nil)
 
-	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, stackClient, gitClient)
+	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, logger, stackClient, gitClient)
 
 	type testCase struct {
 		name       string
@@ -122,7 +122,7 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 	userRepo.On("UserTrackLink", goodID, newLink).Return(false)
 	userRepo.On("TrackLink", goodID, newLink, mock.Anything).Return(nil)
 
-	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, stackClient)
+	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, logger, stackClient)
 
 	type testCase struct {
 		name       string
@@ -192,7 +192,7 @@ func TestLinkHandler_DeleteMethodHandler(t *testing.T) {
 	userRepo.On("UserTrackLink", goodID, unexpectedLink).Return(false)
 	userRepo.On("UntrackLink", goodID, expectedLink).Return(nil)
 
-	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, stackClient)
+	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, logger, stackClient)
 
 	type testCase struct {
 		name       string
@@ -253,7 +253,7 @@ func TestLinkHandler_HandleLinksChanges(t *testing.T) {
 
 	userRepo.On("AllUserLinks", errID).Return(nil, userstorage.NewErrWithStorage("нет ссылок"))
 
-	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, stackClient)
+	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, logger, stackClient)
 
 	type testCase struct {
 		name       string

@@ -7,6 +7,7 @@ import (
 	"io"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/domain/tgbot"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -173,12 +174,14 @@ func (s *ScrapperClient) AddLink(id ID, userCtx *tgbot.ContextData) error {
 	resp, err := s.client.Do(req)
 
 	if err != nil {
+		log.Println("ошибка при выполнении запроса")
 		return fmt.Errorf("запрос на добавление ссылки пользователя, закончился ошибкой :%w", err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		log.Println("Не верный статус")
 		return NewErrBadRequestStatus("не смогли добавить ссылку пользователя", resp.StatusCode)
 	}
 

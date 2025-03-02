@@ -4,10 +4,10 @@ type LinkUpdate struct {
 	ID          int    `json:"id"`
 	URL         string `json:"url"`
 	Description string `json:"description"`
-	TgChatIds   []int  `json:"tgChatIds"`
+	TgChatIDs   []int  `json:"tgChatIds"`
 }
 
-type ApiErrResponse struct {
+type APIErrResponse struct {
 	Description      string   `json:"description"`
 	Code             string   `json:"code"`
 	ExceptionName    string   `json:"exceptionName"`
@@ -15,8 +15,8 @@ type ApiErrResponse struct {
 	Stacktrace       []string `json:"stacktrace"`
 }
 
-func NewApiErrResponse(exeptionName, exeptionMessage string, stackTrace []string) *ApiErrResponse {
-	return &ApiErrResponse{
+func NewAPIErrResponse(exeptionName, exeptionMessage string, stackTrace []string) *APIErrResponse {
+	return &APIErrResponse{
 		Description:      "Некорректные параметры запроса",
 		Code:             "400",
 		ExceptionName:    exeptionName,

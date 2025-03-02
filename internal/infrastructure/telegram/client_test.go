@@ -221,6 +221,55 @@ func TestTgClient_SendMessage(t *testing.T) {
 	}
 }
 
+func TestTgClient_SetBotCommands(t *testing.T) {
+	apiErrClient := mocks.NewHTTPClient(t)
+	wrongBodyClient := mocks.NewHTTPClient(t)
+	goodClient := mocks.NewHTTPClient(t)
+
+	apiErrClient.On("Do", mock.Anything).Return(responseWithErr, nil)
+	wrongBodyClient.On("Do", mock.Anything).Return(respWithOkStatus, nil)
+	goodClient.On("Do", mock.Anything).Return(respTgDefaultAnswer, nil)
+
+	type testCase struct {
+		name    string
+		client  HTTPClient
+		data    *tgbot.SetCommands
+		correct bool
+	}
+
+	tests := []testCase{
+		{
+			name:    "имитируем ошибку от API",
+			client:  apiErrClient,
+			data:    &tgbot.SetCommands{},
+			correct: false,
+		},
+		{
+			name:    "Сервер присылает данные не верного формата",
+			client:  wrongBodyClient,
+			data:    &tgbot.SetCommands{},
+			correct: false,
+		},
+		{
+			name:    "Сообщение отправлено без ошибок",
+			client:  goodClient,
+			data:    &tgbot.SetCommands{},
+			correct: true,
+		},
+	}
+
+	for _, test := range tests {
+		tgClient := telegram.NewClient(test.client, token, host)
+		err := tgClient.SetBotCommands(test.data)
+
+		if test.correct {
+			assert.NoError(t, err)
+		} else {
+			assert.Error(t, err)
+		}
+	}
+}
+
 // ИНТЕГРАЦИОННЫЕ ТЕСТЫ
 //
 //	func TestRequestToBotAPI(t *testing.T) {

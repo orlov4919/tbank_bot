@@ -8,6 +8,8 @@ packages:
       dir: mocks
     interfaces:
       TgClient:
+      ScrapClient:
+      CtxStorage:
   linkTraccer/internal/infrastructure/siteClients/stackoverflow:
     config:
       dir: mocks

@@ -4,9 +4,11 @@ import (
 	"errors"
 	"linkTraccer/internal/infrastructure/scrapperhandlers"
 	"linkTraccer/internal/infrastructure/scrapperhandlers/mocks"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,6 +20,9 @@ const (
 	secondUserID = 2
 )
 
+var logLevel = slog.LevelDebug
+
+var logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 var errTest = errors.New("ошибка при удалении пользователя")
 
 func TestChatHandler_HandleChatChanges(t *testing.T) {
@@ -29,7 +34,7 @@ func TestChatHandler_HandleChatChanges(t *testing.T) {
 	userRepo.On("DeleteUser", firstUserID).Return(nil)
 	userRepo.On("DeleteUser", secondUserID).Return(errTest)
 
-	scrapHandler := scrapperhandlers.NewChatHandler(userRepo)
+	scrapHandler := scrapperhandlers.NewChatHandler(userRepo, logger)
 
 	type testCase struct {
 		name           string

@@ -17,3 +17,12 @@ type User struct {
 type Updates = []Update
 
 type Link = string
+
+type BotCommand struct {
+	Command     string `json:"command"`
+	Description string `json:"description"`
+}
+
+type SetCommands struct {
+	Commands []BotCommand `json:"commands"`
+}

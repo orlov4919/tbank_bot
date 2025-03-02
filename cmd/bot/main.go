@@ -1,15 +1,18 @@
 package main
 
 import (
-	"linkTraccer/internal/application/botService"
+	"linkTraccer/internal/application/botservice"
 	"linkTraccer/internal/infrastructure/botconfig"
 	"linkTraccer/internal/infrastructure/bothandler"
 	"linkTraccer/internal/infrastructure/database/file/contextstorage"
 	"linkTraccer/internal/infrastructure/scrapperclient"
 	"linkTraccer/internal/infrastructure/telegram"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/go-co-op/gocron"
 )
 
 const (
@@ -17,22 +20,45 @@ const (
 )
 
 func main() {
+	var logLevel = new(slog.LevelVar)
+
+	logLevel.Set(slog.LevelInfo)
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 	config, err := botconfig.New()
 
 	if err != nil {
-		log.Fatal(err)
+		logger.Debug("ошибка при настройке конфига", "err", err.Error())
 	}
 
 	tgClient := telegram.NewClient(&http.Client{Timeout: time.Minute}, config.Token, telegramBotAPI)
 	ctxStore := contextstorage.New()
-	scrapClient := scrapperclient.New(&http.Client{Timeout: time.Minute}, config.ScrapperServerUrl)
-	tgBot := botService.New(tgClient, scrapClient, ctxStore, 5)
+	scrapClient := scrapperclient.New(&http.Client{Timeout: time.Minute}, config.ScrapperServerURL)
+	tgBot := botservice.New(tgClient, scrapClient, ctxStore, logger, 5)
 
-	go tgBot.Start()
+	tgBot.Init()
+
+	s := gocron.NewScheduler(time.UTC)
+
+	_, err = s.Every(time.Second * 3).Do(tgBot.CheckUsersMsg)
+
+	if err != nil {
+		logger.Debug("ошибка в работе планировщика", "err", err.Error())
+	}
+
+	s.StartAsync()
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/updates", bothandler.New(tgClient).HandleLinkUpdates)
+	mux.HandleFunc("/updates", bothandler.New(tgClient, logger).HandleLinkUpdates)
 
-	http.ListenAndServe(config.BotServerPort, mux)
+	srv := &http.Server{
+		Addr:         config.BotServerPort,
+		Handler:      mux,
+		ReadTimeout:  30 * time.Second, // Таймаут чтения запроса
+		WriteTimeout: 30 * time.Second, // Таймаут записи ответа
+		IdleTimeout:  30 * time.Second, // Таймаут простоя соединения
+	}
+
+	_ = srv.ListenAndServe()
 }

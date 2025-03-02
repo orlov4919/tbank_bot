@@ -3,30 +3,32 @@ package scrapperhandlers
 import (
 	"encoding/json"
 	"io"
-	"linkTraccer/internal/application/scrapperService"
+	"linkTraccer/internal/application/scrapperservice"
 	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/domain/scrapper"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 )
 
 type LinkResponse = scrapper.LinkResponse
 type ListLinksResponse = scrapper.ListLinksResponse
-type UserRepo = scrapperService.UserRepo
+type UserRepo = scrapperservice.UserRepo
 type AddLinkRequest = scrapper.AddLinkRequest
-type SiteClient = scrapperService.SiteClient
+type SiteClient = scrapperservice.SiteClient
 type RemoveLink = scrapper.RemoveLinkRequest
 
 type LinkHandler struct {
 	userRepo    UserRepo
 	siteClients []SiteClient
+	log         *slog.Logger
 }
 
-func NewLinkHandler(repo UserRepo, clients ...SiteClient) *LinkHandler {
+func NewLinkHandler(repo UserRepo, log *slog.Logger, clients ...SiteClient) *LinkHandler {
 	return &LinkHandler{
 		userRepo:    repo,
 		siteClients: clients,
+		log:         log,
 	}
 }
 
@@ -43,10 +45,10 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("ошибка тела запроса", err.Error(), []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("ошибка тела запроса", err.Error(), []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 
 		return
@@ -58,10 +60,10 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", "no id in req", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("id error", "no id in req", []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 
 		return
@@ -86,10 +88,10 @@ func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("id error", "id exist", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("id error", "id exist", []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 
 		return
@@ -111,7 +113,7 @@ func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int) {
 	err = json.NewEncoder(w).Encode(listLinksResponse)
 
 	if err != nil {
-		log.Println("Ошибка при формировании json ответа")
+		l.log.Info("Ошибка при формировании json ответа", "err", err)
 	}
 }
 
@@ -122,10 +124,10 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqDa
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("json err", "wrong json format", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("json err", "wrong json format", []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 
 		return
@@ -134,10 +136,10 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqDa
 	if l.userRepo.UserTrackLink(userID, addLinkRequest.Link) {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("already track", "user track this link", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("already track", "user track this link", []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 
 		return
@@ -158,7 +160,7 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqDa
 		err = l.userRepo.TrackLink(userID, addLinkRequest.Link, "") // Добавить состояние константой
 
 		if err != nil {
-			log.Println("При добавлении ссылки произошла ошибка")
+			l.log.Info("ошибка при добавлении ссылки", "err", err)
 		}
 
 		linkResponse := &LinkResponse{
@@ -171,15 +173,15 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqDa
 		err := json.NewEncoder(w).Encode(linkResponse)
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("link err", "link not support", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("link err", "link not support", []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 	}
 }
@@ -191,10 +193,10 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int, req
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("json error", "wrong json format", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("json error", "wrong json format", []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 
 		return
@@ -206,7 +208,7 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int, req
 		err = l.userRepo.UntrackLink(userID, removeLink.Link)
 
 		if err != nil {
-			log.Println("При удалении ссылки произошла ошибка")
+			l.log.Info("ошибка при удалении ссылки", "err", err)
 		}
 
 		linkResponse := &LinkResponse{
@@ -219,15 +221,15 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int, req
 		err := json.NewEncoder(w).Encode(linkResponse)
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 
-		err := json.NewEncoder(w).Encode(dto.NewApiErrResponse("link err", "dont tracc link", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("link err", "dont tracc link", []string{}))
 
 		if err != nil {
-			log.Println("Ошибка при формировании json ответа")
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
 	}
 }

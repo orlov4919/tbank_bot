@@ -1,11 +1,14 @@
-package scrapperService_test
+package scrapperservice_test
 
 import (
-	"github.com/stretchr/testify/mock"
-	"linkTraccer/internal/application/scrapperService"
-	"linkTraccer/internal/application/scrapperService/mocks"
+	"io"
+	"linkTraccer/internal/application/scrapperservice"
+	"linkTraccer/internal/application/scrapperservice/mocks"
 	"linkTraccer/internal/domain/scrapper"
+	"log/slog"
 	"testing"
+
+	"github.com/stretchr/testify/mock"
 )
 
 type Link = scrapper.Link
@@ -24,9 +27,10 @@ const (
 )
 
 var userWhoTrackFirstLink = []User{1}
+var logLevel = slog.LevelInfo
+var logger = slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: logLevel}))
 
 func TestScrapper_CheckLinkUpdates(t *testing.T) {
-
 	gitClient := mocks.NewSiteClient(t)
 	userRepo := mocks.NewUserRepo(t)
 	botClient := mocks.NewBotClient(t)
@@ -49,7 +53,7 @@ func TestScrapper_CheckLinkUpdates(t *testing.T) {
 
 	botClient.On("SendLinkUpdates", mock.Anything).Return(nil).Times(1)
 
-	scrapper := scrapperService.New(userRepo, botClient, gitClient)
+	scrapper := scrapperservice.New(userRepo, botClient, logger, gitClient)
 
 	scrapper.CheckLinkUpdates()
 }

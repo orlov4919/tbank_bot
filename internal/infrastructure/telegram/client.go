@@ -19,9 +19,10 @@ type HTTPClient interface {
 }
 
 const (
-	getUpdates  = "getUpdates"
-	sendMessage = "sendMessage"
-	jsonType    = "application/json"
+	setMyCommands = "setMyCommands"
+	getUpdates    = "getUpdates"
+	sendMessage   = "sendMessage"
+	jsonType      = "application/json"
 )
 
 type TgClient struct {
@@ -97,6 +98,30 @@ func (bot *TgClient) SendMessage(userID int, text string) error {
 	return nil
 }
 
+func (bot *TgClient) SetBotCommands(data *tgbot.SetCommands) error {
+	setCommandsURL := bot.makeRequestURL(setMyCommands, nil)
+
+	jsonData, err := json.Marshal(data)
+
+	if err != nil {
+		return fmt.Errorf("при маршалинге команд возникла ошибка: %w", err)
+	}
+
+	responseData, err := RequestToAPI(bot.client, setCommandsURL, http.MethodPost, bytes.NewBuffer(jsonData))
+
+	if err != nil {
+		return fmt.Errorf("при выполнении setCommands произошла ошибка: %w", err)
+	}
+
+	serverAnswer := &DefaultServerAnswer{}
+
+	if err := json.Unmarshal(responseData, serverAnswer); err != nil {
+		return fmt.Errorf("при декодинге сообщения сервера возникла ошибка: %w", err)
+	}
+
+	return nil
+}
+
 func RequestToAPI(client HTTPClient, url *url.URL, httpMethod string, data io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(httpMethod, url.String(), data)
 
@@ -105,7 +130,7 @@ func RequestToAPI(client HTTPClient, url *url.URL, httpMethod string, data io.Re
 	}
 
 	if data != nil {
-		req.Header.Add("content-type", jsonType)
+		req.Header.Add("Content-Type", jsonType)
 	}
 
 	r, err := client.Do(req)

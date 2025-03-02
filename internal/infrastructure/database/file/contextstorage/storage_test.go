@@ -12,7 +12,6 @@ type ID = tgbot.ID
 type ContextData = tgbot.ContextData
 
 func TestContextStorage_RegUser(t *testing.T) {
-
 	type testCase struct {
 		name    string
 		id      ID
@@ -46,7 +45,6 @@ func TestContextStorage_RegUser(t *testing.T) {
 }
 
 func TestContextStorage_AddUrl(t *testing.T) {
-
 	contextStore := contextstorage.New()
 
 	type StoreData struct {
@@ -95,7 +93,6 @@ func TestContextStorage_AddUrl(t *testing.T) {
 }
 
 func TestContextStorage_AddFilters(t *testing.T) {
-
 	contextStore := contextstorage.New()
 
 	type StoreData struct {

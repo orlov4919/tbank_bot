@@ -81,7 +81,7 @@ func (stack *StackClient) CanTrack(link Link) bool {
 
 	defer resp.Body.Close()
 
-	return resp.StatusCode != http.StatusOK
+	return resp.StatusCode == http.StatusOK
 }
 
 func (stack *StackClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string) bool {

@@ -127,6 +127,52 @@ func (_c *TgClient_SendMessage_Call) RunAndReturn(run func(int, string) error) *
 	return _c
 }
 
+// SetBotCommands provides a mock function with given fields: data
+func (_m *TgClient) SetBotCommands(data *tgbot.SetCommands) error {
+	ret := _m.Called(data)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetBotCommands")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*tgbot.SetCommands) error); ok {
+		r0 = rf(data)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// TgClient_SetBotCommands_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetBotCommands'
+type TgClient_SetBotCommands_Call struct {
+	*mock.Call
+}
+
+// SetBotCommands is a helper method to define mock.On call
+//   - data *tgbot.SetCommands
+func (_e *TgClient_Expecter) SetBotCommands(data interface{}) *TgClient_SetBotCommands_Call {
+	return &TgClient_SetBotCommands_Call{Call: _e.mock.On("SetBotCommands", data)}
+}
+
+func (_c *TgClient_SetBotCommands_Call) Run(run func(data *tgbot.SetCommands)) *TgClient_SetBotCommands_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*tgbot.SetCommands))
+	})
+	return _c
+}
+
+func (_c *TgClient_SetBotCommands_Call) Return(_a0 error) *TgClient_SetBotCommands_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *TgClient_SetBotCommands_Call) RunAndReturn(run func(*tgbot.SetCommands) error) *TgClient_SetBotCommands_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewTgClient creates a new instance of TgClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewTgClient(t interface {

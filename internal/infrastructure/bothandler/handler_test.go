@@ -4,20 +4,25 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"linkTraccer/internal/application/botService/mocks"
+	"linkTraccer/internal/application/botservice/mocks"
 	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/infrastructure/bothandler"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
+var logLevel = slog.LevelDebug
+
+var logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 var randomStrBytes = []byte("hello word")
 
-var testJSON = &dto.ApiErrResponse{
+var testJSON = &dto.APIErrResponse{
 	Description: "ошибка для тестирования",
 	Code:        "400",
 }
@@ -26,10 +31,13 @@ var linkUpdate = &dto.LinkUpdate{
 	ID:          1,
 	URL:         "google.com",
 	Description: "Новое уведомление",
-	TgChatIds:   []int{1, 2},
+	TgChatIDs:   []int{1, 2},
 }
 
 func TestUpdateServer_WriteResponseData(t *testing.T) {
+	tgClient := mocks.NewTgClient(t)
+	botHandler := bothandler.New(tgClient, logger)
+
 	type TestCase struct {
 		codeHTTP int
 		data     any
@@ -49,11 +57,11 @@ func TestUpdateServer_WriteResponseData(t *testing.T) {
 	for _, test := range tests {
 		w := httptest.NewRecorder()
 
-		bothandler.WriteInResponse(w, test.codeHTTP, test.data)
+		botHandler.WriteInResponse(w, test.codeHTTP, test.data)
 		assert.Equal(t, test.codeHTTP, w.Code)
 
 		if test.data != nil {
-			respJSON := &dto.ApiErrResponse{}
+			respJSON := &dto.APIErrResponse{}
 			respData, _ := io.ReadAll(w.Body)
 
 			_ = json.Unmarshal(respData, respJSON)
@@ -67,7 +75,7 @@ func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 
 	tgClient.On("SendMessage", mock.Anything, mock.Anything).Return(nil)
 
-	botHandler := bothandler.New(tgClient)
+	botHandler := bothandler.New(tgClient, logger)
 	linkUpdateJSON, _ := json.Marshal(linkUpdate)
 
 	type testCase struct {

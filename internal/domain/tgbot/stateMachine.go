@@ -37,7 +37,6 @@ type StateDesc struct {
 type States []StateDesc
 
 func NewStateMachine(initial StateType, states States) (*StateMachine, error) {
-
 	mStates := make(map[StateType]state)
 
 	for _, s := range states {
@@ -69,16 +68,15 @@ func (m *StateMachine) Current(id ID) StateType {
 	if m.current[id] == "" {
 		return m.initial
 	}
+
 	return m.current[id]
 }
 
 func (m *StateMachine) getNextState(id ID, event EventType) (StateType, error) {
 	current := m.Current(id)
-
 	next, ok := m.states[current].transitions[event]
 
 	if !ok {
-
 		next, ok := m.states[current].transitions[TextEvent]
 
 		if !ok {
@@ -99,5 +97,6 @@ func (m *StateMachine) Transition(id ID, event EventType) (StateType, error) {
 	}
 
 	m.current[id] = next
+
 	return next, nil
 }
