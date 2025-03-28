@@ -2,11 +2,11 @@ package scrapperhandlers
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"linkTraccer/internal/domain/dto"
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 const (
@@ -27,15 +27,9 @@ func NewChatHandler(repo UserRepo, log *slog.Logger) *ChatHandler {
 }
 
 func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost && r.Method != http.MethodDelete {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	w.Header().Set(contentType, jsonType)
 
-	data := strings.TrimPrefix(r.URL.String(), "/tg-chat/")
-	userID, err := strconv.Atoi(data)
+	userID, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -60,9 +54,20 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	userExist, err := c.userRepo.UserExist(userID)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		c.log.Info("ошибка при проверке пользователя в БД", "err", err.Error())
+
+		return
+	}
+
 	switch r.Method {
 	case http.MethodPost:
-		if c.userRepo.UserExist(userID) {
+
+		if userExist {
 			w.WriteHeader(http.StatusBadRequest)
 
 			err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("id error", "id exist", []string{}))
@@ -74,23 +79,36 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-
 		if err := c.userRepo.RegUser(userID); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+
 			c.log.Info("ошибка при регистрации пользователя", "err", err.Error())
+		} else {
+			w.WriteHeader(http.StatusOK)
 		}
 
 	case http.MethodDelete:
-		if err := c.userRepo.DeleteUser(userID); err != nil {
+
+		if !userExist {
 			w.WriteHeader(http.StatusNotFound)
 
-			err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("id error", err.Error(), []string{}))
+			err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("id error", "нет чата", []string{}))
 
 			if err != nil {
 				c.log.Debug("ошибка при формировании json ответа", "err", err.Error())
 			}
+
+			return
+		}
+
+		if err := c.userRepo.DeleteUser(userID); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+
+			c.log.Info("ошибка при регистрации пользователя", "err", err.Error())
 		} else {
 			w.WriteHeader(http.StatusOK)
 		}
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }

@@ -7,6 +7,7 @@ import (
 )
 
 func RegHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id ID, _ tgbot.EventType) error {
+
 	if err := ctxStore.RegUser(id); err != nil {
 		return fmt.Errorf("при регистрации в хранилище контекстной информации возникла ошибка: %w", err)
 	}

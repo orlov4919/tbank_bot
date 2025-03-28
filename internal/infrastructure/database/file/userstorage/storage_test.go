@@ -594,7 +594,7 @@ func TestFileStorage_LinkState(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		resState, err := fileStorage.LinkState(test.link)
+		resState, err := fileStorage.LinkLastCheck(test.link)
 
 		if test.correct {
 			assert.NoError(t, err)
@@ -670,12 +670,12 @@ func TestFileStorage_ChangeLinkState(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := fileStorage.ChangeLinkState(test.link, test.newState)
+		err := fileStorage.ChangeLinkLastCheck(test.link, test.newState)
 
 		if !test.correct {
 			assert.Error(t, err)
 		} else {
-			linkStateInStorage, _ := fileStorage.LinkState(test.link)
+			linkStateInStorage, _ := fileStorage.LinkLastCheck(test.link)
 
 			assert.NoError(t, err)
 			assert.Equal(t, test.newState, linkStateInStorage)

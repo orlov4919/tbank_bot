@@ -69,7 +69,7 @@ func (bot *TgClient) HandleUsersUpdates(offset, limit int) (Updates, error) {
 	return response.Updates, nil
 }
 
-func (bot *TgClient) SendMessage(userID int, text string) error {
+func (bot *TgClient) SendMessage(userID int64, text string) error {
 	sendMessageURL := bot.makeRequestURL(sendMessage, nil)
 
 	data := &SendMessage{

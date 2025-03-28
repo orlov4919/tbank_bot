@@ -6,7 +6,7 @@ const (
 	TextEvent EventType = "text"
 )
 
-type ID = int
+type ID = int64
 
 type EventType = string
 

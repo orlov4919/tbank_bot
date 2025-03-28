@@ -63,7 +63,7 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 		s.WriteInResponse(w, http.StatusOK, nil)
 
 		for _, userID := range linkUpdate.TgChatIDs { // переписать на горутины
-			err := s.tgClient.SendMessage(userID, linkUpdate.Description+": "+linkUpdate.URL)
+			err := s.tgClient.SendMessage(userID, linkUpdate.Description+linkUpdate.URL)
 
 			if err != nil {
 				s.log.Debug("ошибка при отправке обновлений пользователю", "err", err.Error())

@@ -1,20 +1,23 @@
 package scrapperconfig
 
-import "github.com/BurntSushi/toml"
+import (
+	"fmt"
+	"github.com/caarlos0/env/v11"
+)
 
 type Config struct {
-	TgBotServerURL     string `toml:"tgbot_server_url"`
-	ScrapperServerPort string `toml:"scrapper_server_port"`
-	GitHubToken        string `toml:"github_token"`
+	BotHost      string `env:"BOT_HOST"`
+	BotPort      string `env:"BOT_PORT"`
+	ScrapperPort string `env:"SCRAPPER_PORT"`
+	GitHubAPIKey string `env:"GIT_KEY"`
 }
-
-const (
-	pathToConfig = "../../configs/scrapper/config.toml"
-)
 
 func New() (*Config, error) {
 	config := &Config{}
-	_, err := toml.DecodeFile(pathToConfig, config)
 
-	return config, err
+	if err := env.Parse(config); err != nil {
+		return nil, fmt.Errorf("ошибка при конфигурации scrapper: %w", err)
+	}
+
+	return config, nil
 }

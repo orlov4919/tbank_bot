@@ -33,7 +33,7 @@ func main() {
 
 	tgClient := telegram.NewClient(&http.Client{Timeout: time.Minute}, config.Token, telegramBotAPI)
 	ctxStore := contextstorage.New()
-	scrapClient := scrapperclient.New(&http.Client{Timeout: time.Minute}, config.ScrapperServerURL)
+	scrapClient := scrapperclient.New(&http.Client{Timeout: time.Minute}, config.ScrapperHost, config.ScrapperPort)
 	tgBot := botservice.New(tgClient, scrapClient, ctxStore, logger, 5)
 
 	tgBot.Init()
@@ -53,7 +53,7 @@ func main() {
 	mux.HandleFunc("/updates", bothandler.New(tgClient, logger).HandleLinkUpdates)
 
 	srv := &http.Server{
-		Addr:         config.BotServerPort,
+		Addr:         config.BotPort,
 		Handler:      mux,
 		ReadTimeout:  30 * time.Second, // Таймаут чтения запроса
 		WriteTimeout: 30 * time.Second, // Таймаут записи ответа

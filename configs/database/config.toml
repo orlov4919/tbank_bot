@@ -1,0 +1,6 @@
+database_url = "postgres://postgres:1234@127.0.0.1:5432/linkTraccer?sslmode=disable"
+migrations_path = "../../migrations"
+db_url_migrations = "pgx5://postgres:1234@127.0.0.1:5432/linkTraccer?sslmode=disable"
+batch_size = 1
+
+#checkInterval =  Duration

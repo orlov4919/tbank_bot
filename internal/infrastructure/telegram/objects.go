@@ -10,6 +10,6 @@ type DefaultServerAnswer struct {
 }
 
 type SendMessage struct {
-	ID   int    `json:"chat_id"`
+	ID   int64  `json:"chat_id"`
 	Text string `json:"text"`
 }

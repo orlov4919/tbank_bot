@@ -142,7 +142,7 @@ func (f *FileStorage) UsersWhoTrackLink(userLink Link) []User {
 	return users
 }
 
-func (f *FileStorage) LinkState(link Link) (LinkState, error) {
+func (f *FileStorage) LinkLastCheck(link Link) (LinkState, error) {
 	f.mu.Lock()
 
 	defer f.mu.Unlock()
@@ -154,7 +154,7 @@ func (f *FileStorage) LinkState(link Link) (LinkState, error) {
 	return f.LinksState[link], nil
 }
 
-func (f *FileStorage) ChangeLinkState(link Link, newState LinkState) error {
+func (f *FileStorage) ChangeLinkLastCheck(link Link, newState LinkState) error {
 	f.mu.Lock()
 
 	defer f.mu.Unlock()

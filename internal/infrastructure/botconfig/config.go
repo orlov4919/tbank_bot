@@ -1,20 +1,23 @@
 package botconfig
 
-import "github.com/BurntSushi/toml"
+import (
+	"fmt"
+	"github.com/caarlos0/env/v11"
+)
 
 type Config struct {
-	Token             string `toml:"token"`
-	ScrapperServerURL string `toml:"scrapper_server_url"`
-	BotServerPort     string `toml:"bot_server_port"`
+	Token        string `env:"BOT_TOKEN"`
+	ScrapperPort string `env:"SCRAPPER_PORT"`
+	ScrapperHost string `env:"SCRAPPER_HOST"`
+	BotPort      string `env:"BOT_PORT"`
 }
-
-const (
-	pathToConfig = "../../configs/bot/config.toml"
-)
 
 func New() (*Config, error) {
 	config := &Config{}
-	_, err := toml.DecodeFile(pathToConfig, config)
 
-	return config, err
+	if err := env.Parse(config); err != nil {
+		return nil, fmt.Errorf("ошибка при конфигурации: %w", err)
+	}
+
+	return config, nil
 }

@@ -299,7 +299,7 @@ func TestTgClient_SetBotCommands(t *testing.T) {
 //			{
 //				name:    "Не правильно указан путь для получения обновлений",
 //				method:  http.MethodGet,
-//				path:    "/Updates",
+//				path:    "/Answers",
 //				client:  http.DefaultClient,
 //				data:    nil,
 //				correct: false,
@@ -519,7 +519,7 @@ func TestTgClient_SetBotCommands(t *testing.T) {
 //			DefaultServerAnswer: telegram.DefaultServerAnswer{
 //				Ok: true,
 //			},
-//			Updates: []tgbot.Update{
+//			Answers: []tgbot.Update{
 //				{UpdateID: 777,
 //					Msg: tgbot.Message{
 //						From: tgbot.User{ID: 55},

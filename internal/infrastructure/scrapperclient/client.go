@@ -28,9 +28,9 @@ type ScrapperClient struct {
 	client         HTTPClient
 }
 
-func New(client HTTPClient, host string) *ScrapperClient {
+func New(client HTTPClient, host, port string) *ScrapperClient {
 	return &ScrapperClient{
-		host:           host,
+		host:           host + port,
 		baseLinkPath:   "/links",
 		baseTgChatPath: "/tg-chat",
 		client:         client,
@@ -41,7 +41,7 @@ func (s *ScrapperClient) RegUser(id ID) error {
 	url := &url.URL{
 		Scheme: "http",
 		Host:   s.host,
-		Path:   path.Join(s.baseTgChatPath, strconv.Itoa(id)),
+		Path:   path.Join(s.baseTgChatPath, strconv.FormatInt(id, 10)),
 	}
 
 	req := &http.Request{
@@ -75,7 +75,7 @@ func (s *ScrapperClient) UserLinks(id ID) ([]Link, error) {
 		Method: http.MethodGet,
 		URL:    url,
 		Header: map[string][]string{
-			"Tg-Chat-Id": {strconv.Itoa(id)},
+			"Tg-Chat-Id": {strconv.FormatInt(id, 10)},
 		},
 	}
 
@@ -123,7 +123,7 @@ func (s *ScrapperClient) RemoveLink(id ID, link Link) error {
 		Method: http.MethodDelete,
 		URL:    url,
 		Header: map[string][]string{
-			"Tg-Chat-Id":   {strconv.Itoa(id)},
+			"Tg-Chat-Id":   {strconv.FormatInt(id, 10)},
 			"Content-Type": {"application/json"},
 		},
 		Body: io.NopCloser(bytes.NewBuffer(removeLink)),
@@ -165,7 +165,7 @@ func (s *ScrapperClient) AddLink(id ID, userCtx *tgbot.ContextData) error {
 		Method: http.MethodPost,
 		URL:    url,
 		Header: map[string][]string{
-			"Tg-Chat-Id":   {strconv.Itoa(id)},
+			"Tg-Chat-Id":   {strconv.FormatInt(id, 10)},
 			"Content-Type": {"application/json"},
 		},
 		Body: io.NopCloser(bytes.NewBuffer(addLink)),

@@ -199,7 +199,7 @@ func TestGitClient_LinkState(t *testing.T) {
 	for _, test := range tests {
 		gitClient := github.NewClient(testHost, testToken, test.client)
 
-		state, err := gitClient.LinkState(test.link)
+		state, err := gitClient.LinkUpdates(test.link)
 
 		assert.Equal(t, test.state, state)
 

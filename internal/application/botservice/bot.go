@@ -12,7 +12,7 @@ type ID = tgbot.ID
 
 type TgClient interface {
 	HandleUsersUpdates(offset, limit int) (Updates, error)
-	SendMessage(userID int, text string) error
+	SendMessage(userID int64, text string) error
 	SetBotCommands(data *tgbot.SetCommands) error
 }
 

@@ -22,7 +22,7 @@ func (_m *UserRepo) AllLinks() []string {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for AllLinks")
+		panic("no return value specified for LinksBatch")
 	}
 
 	var r0 []string
@@ -37,14 +37,14 @@ func (_m *UserRepo) AllLinks() []string {
 	return r0
 }
 
-// UserRepo_AllLinks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AllLinks'
+// UserRepo_AllLinks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LinksBatch'
 type UserRepo_AllLinks_Call struct {
 	*mock.Call
 }
 
 // AllLinks is a helper method to define mock.On call
 func (_e *UserRepo_Expecter) AllLinks() *UserRepo_AllLinks_Call {
-	return &UserRepo_AllLinks_Call{Call: _e.mock.On("AllLinks")}
+	return &UserRepo_AllLinks_Call{Call: _e.mock.On("LinksBatch")}
 }
 
 func (_c *UserRepo_AllLinks_Call) Run(run func()) *UserRepo_AllLinks_Call {
@@ -123,11 +123,11 @@ func (_c *UserRepo_AllUserLinks_Call) RunAndReturn(run func(int) ([]string, erro
 }
 
 // ChangeLinkState provides a mock function with given fields: link, newState
-func (_m *UserRepo) ChangeLinkState(link string, newState string) error {
+func (_m *UserRepo) ChangeLinkLastCheck(link string, newState string) error {
 	ret := _m.Called(link, newState)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ChangeLinkState")
+		panic("no return value specified for ChangeLinkLastCheck")
 	}
 
 	var r0 error
@@ -140,7 +140,7 @@ func (_m *UserRepo) ChangeLinkState(link string, newState string) error {
 	return r0
 }
 
-// UserRepo_ChangeLinkState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ChangeLinkState'
+// UserRepo_ChangeLinkState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ChangeLinkLastCheck'
 type UserRepo_ChangeLinkState_Call struct {
 	*mock.Call
 }
@@ -149,7 +149,7 @@ type UserRepo_ChangeLinkState_Call struct {
 //   - link string
 //   - newState string
 func (_e *UserRepo_Expecter) ChangeLinkState(link interface{}, newState interface{}) *UserRepo_ChangeLinkState_Call {
-	return &UserRepo_ChangeLinkState_Call{Call: _e.mock.On("ChangeLinkState", link, newState)}
+	return &UserRepo_ChangeLinkState_Call{Call: _e.mock.On("ChangeLinkLastCheck", link, newState)}
 }
 
 func (_c *UserRepo_ChangeLinkState_Call) Run(run func(link string, newState string)) *UserRepo_ChangeLinkState_Call {
@@ -216,11 +216,11 @@ func (_c *UserRepo_DeleteUser_Call) RunAndReturn(run func(int) error) *UserRepo_
 }
 
 // LinkState provides a mock function with given fields: link
-func (_m *UserRepo) LinkState(link string) (string, error) {
+func (_m *UserRepo) LinkLastCheck(link string) (string, error) {
 	ret := _m.Called(link)
 
 	if len(ret) == 0 {
-		panic("no return value specified for LinkState")
+		panic("no return value specified for LinkUpdates")
 	}
 
 	var r0 string
@@ -243,7 +243,7 @@ func (_m *UserRepo) LinkState(link string) (string, error) {
 	return r0, r1
 }
 
-// UserRepo_LinkState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LinkState'
+// UserRepo_LinkState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LinkUpdates'
 type UserRepo_LinkState_Call struct {
 	*mock.Call
 }
@@ -251,7 +251,7 @@ type UserRepo_LinkState_Call struct {
 // LinkState is a helper method to define mock.On call
 //   - link string
 func (_e *UserRepo_Expecter) LinkState(link interface{}) *UserRepo_LinkState_Call {
-	return &UserRepo_LinkState_Call{Call: _e.mock.On("LinkState", link)}
+	return &UserRepo_LinkState_Call{Call: _e.mock.On("LinkUpdates", link)}
 }
 
 func (_c *UserRepo_LinkState_Call) Run(run func(link string)) *UserRepo_LinkState_Call {

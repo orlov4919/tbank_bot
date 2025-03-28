@@ -1,10 +1,10 @@
 package dto
 
 type LinkUpdate struct {
-	ID          int    `json:"id"`
-	URL         string `json:"url"`
-	Description string `json:"description"`
-	TgChatIDs   []int  `json:"tgChatIds"`
+	ID          int64   `json:"id"`
+	URL         string  `json:"url"`
+	Description string  `json:"description"`
+	TgChatIDs   []int64 `json:"tgChatIds"`
 }
 
 type APIErrResponse struct {

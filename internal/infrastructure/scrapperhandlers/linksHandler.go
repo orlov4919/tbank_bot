@@ -2,8 +2,12 @@ package scrapperhandlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
-	"linkTraccer/internal/application/scrapperservice"
+	"time"
+
+	//"linkTraccer/internal/application/scrapper"
+	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/domain/scrapper"
 	"log/slog"
@@ -13,9 +17,9 @@ import (
 
 type LinkResponse = scrapper.LinkResponse
 type ListLinksResponse = scrapper.ListLinksResponse
-type UserRepo = scrapperservice.UserRepo
+type UserRepo = scrapservice.UserRepo
 type AddLinkRequest = scrapper.AddLinkRequest
-type SiteClient = scrapperservice.SiteClient
+type SiteClient = scrapservice.SiteClient
 type RemoveLink = scrapper.RemoveLinkRequest
 
 type LinkHandler struct {
@@ -33,11 +37,6 @@ func NewLinkHandler(repo UserRepo, log *slog.Logger, clients ...SiteClient) *Lin
 }
 
 func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost && r.Method != http.MethodDelete && r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	w.Header().Set(contentType, jsonType)
 
 	reqData, err := io.ReadAll(r.Body)
@@ -55,7 +54,7 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 	}
 
 	user := r.Header.Get("Tg-Chat-Id")
-	userID, err := strconv.Atoi(user)
+	userID, err := strconv.ParseInt(user, 10, 64)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -78,10 +77,12 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 
 	case http.MethodDelete:
 		l.DeleteMethodHandler(w, userID, reqData)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int) {
+func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int64) {
 	listLinksResponse := &ListLinksResponse{}
 	userLinks, err := l.userRepo.AllUserLinks(userID)
 
@@ -117,26 +118,17 @@ func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int) {
 	}
 }
 
-func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqData []byte) {
+func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, reqData []byte) {
 	addLinkRequest := &AddLinkRequest{}
+
+	fmt.Println()
+
 	err := json.Unmarshal(reqData, addLinkRequest)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("json err", "wrong json format", []string{}))
-
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
-
-		return
-	}
-
-	if l.userRepo.UserTrackLink(userID, addLinkRequest.Link) {
-		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("already track", "user track this link", []string{}))
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("json err", err.Error(), []string{}))
 
 		if err != nil {
 			l.log.Info("Ошибка при формировании json ответа", "err", err)
@@ -154,28 +146,8 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqDa
 		}
 	}
 
-	if flag {
-		w.WriteHeader(http.StatusOK)
+	if !flag {
 
-		err = l.userRepo.TrackLink(userID, addLinkRequest.Link, "") // Добавить состояние константой
-
-		if err != nil {
-			l.log.Info("ошибка при добавлении ссылки", "err", err)
-		}
-
-		linkResponse := &LinkResponse{
-			ID:      1,
-			URL:     addLinkRequest.Link,
-			Tags:    addLinkRequest.Tags,
-			Filters: addLinkRequest.Filters,
-		}
-
-		err := json.NewEncoder(w).Encode(linkResponse)
-
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
-	} else {
 		w.WriteHeader(http.StatusBadRequest)
 
 		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("link err", "link not support", []string{}))
@@ -183,10 +155,56 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int, reqDa
 		if err != nil {
 			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
+
+		return
+	}
+
+	userTrackLink, err := l.userRepo.UserTrackLink(userID, addLinkRequest.Link)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		l.log.Info("ошибка при проверке отслеживания ссылки", "err", err)
+
+		return
+	}
+
+	if userTrackLink {
+		w.WriteHeader(http.StatusBadRequest)
+
+		err := json.NewEncoder(w).Encode(dto.NewAPIErrResponse("already track", "user track this link", []string{}))
+
+		if err != nil {
+			l.log.Info("Ошибка при формировании json ответа", "err", err)
+		}
+
+		return
+	}
+
+	err = l.userRepo.TrackLink(userID, addLinkRequest.Link, time.Now().Truncate(time.Second))
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		l.log.Info("ошибка при добавлении ссылки", "err", err)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	linkResponse := &LinkResponse{
+		ID:      1,
+		URL:     addLinkRequest.Link,
+		Tags:    addLinkRequest.Tags,
+		Filters: addLinkRequest.Filters,
+	}
+
+	if err := json.NewEncoder(w).Encode(linkResponse); err != nil {
+		l.log.Debug("Ошибка при формировании json ответа", "err", err)
 	}
 }
 
-func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int, reqData []byte) {
+func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, reqData []byte) {
 	removeLink := &RemoveLink{}
 	err := json.Unmarshal(reqData, removeLink)
 
@@ -202,14 +220,28 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int, req
 		return
 	}
 
-	if l.userRepo.UserTrackLink(userID, removeLink.Link) {
-		w.WriteHeader(http.StatusOK)
+	userTrackLink, err := l.userRepo.UserTrackLink(userID, removeLink.Link)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		l.log.Info("ошибка при проверке отслеживания ссылки", "err", err)
+
+		return
+	}
+
+	if userTrackLink {
 
 		err = l.userRepo.UntrackLink(userID, removeLink.Link)
 
 		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+
 			l.log.Info("ошибка при удалении ссылки", "err", err)
+
+			return
 		}
+
+		w.WriteHeader(http.StatusOK)
 
 		linkResponse := &LinkResponse{
 			ID:      1,
