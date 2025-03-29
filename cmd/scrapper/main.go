@@ -77,7 +77,7 @@ func main() {
 	}
 
 	stackClient := stackoverflow.NewClient(stackOverflowAPI, &http.Client{Timeout: time.Second * 10},
-		stackoverflow.HtmlStrCleaner(maxPreviewLen))
+		stackoverflow.HTMLStrCleaner(maxPreviewLen))
 	gitClient := github.NewClient(gitHubAPI, config.GitHubAPIKey, &http.Client{Timeout: time.Second * 10})
 	tgBotClient := botclient.New(config.BotHost+config.BotPort, &http.Client{Timeout: time.Second * 10})
 	notifierService := tgnotifier.New(userStore, tgBotClient)

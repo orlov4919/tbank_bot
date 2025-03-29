@@ -35,3 +35,19 @@ func (err *ErrBadRequestStatus) Error() string {
 func (err *ErrClientCantTrackLink) Error() string {
 	return fmt.Sprintf("клиент %s не может отследить ссылку %s", err.client, err.link)
 }
+
+type ErrNetwork struct {
+	err    error
+	link   string
+	client string
+}
+
+func NewErrNetwork(client, link string, err error) *ErrNetwork {
+	return &ErrNetwork{
+		err: fmt.Errorf("ошибка в клиенте %s при получении данных ссылки %s: %w", client, link, err),
+	}
+}
+
+func (err *ErrNetwork) Error() string {
+	return err.Error()
+}

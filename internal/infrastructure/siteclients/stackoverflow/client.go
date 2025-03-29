@@ -3,7 +3,6 @@ package stackoverflow
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/microcosm-cc/bluemonday"
 	"html"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/siteclients"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/microcosm-cc/bluemonday"
 )
 
 const (
@@ -30,7 +31,8 @@ const (
 )
 
 const (
-	maxPathLen        = 5
+	minPathLen        = 3
+	maxPathLen        = 4
 	maxPreviewLen     = 200
 	indEmptyElement   = 0
 	indQuestions      = 1
@@ -109,13 +111,13 @@ func (stack *StackClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string
 		return false
 	}
 
-	if len(pathArgs) > maxPathLen || len(pathArgs) < 3 {
+	if len(pathArgs) > maxPathLen || len(pathArgs) < minPathLen {
 		return false
 	}
 
-	questionID, err := strconv.Atoi(pathArgs[2])
+	questionID, err := strconv.Atoi(pathArgs[indQuestionID])
 
-	if pathArgs[indEmptyElement] != "" || pathArgs[indQuestions] != "questions" || err != nil || questionID < 1 {
+	if err != nil || pathArgs[indEmptyElement] != "" || pathArgs[indQuestions] != "questions" || questionID < 1 {
 		return false
 	}
 
@@ -137,13 +139,13 @@ func (stack *StackClient) LinkUpdates(link Link, since time.Time) (LinkUpdates, 
 		return nil, siteclients.NewErrClientCantTrackLink(link, clientName)
 	}
 
-	newAnswers, err := stack.NewAnswers(pathArgs, since)
+	newAnswers, err := stack.NewAnswers(pathArgs[indQuestionID], since)
 
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при получении новых ответов: %w", err)
 	}
 
-	newComments, err := stack.NewComments(pathArgs, since)
+	newComments, err := stack.NewComments(pathArgs[indQuestionID], since)
 
 	if err != nil {
 		return nil, fmt.Errorf("ошибка при получении новых комментариев: %w", err)
@@ -161,14 +163,13 @@ func (stack *StackClient) LinkUpdates(link Link, since time.Time) (LinkUpdates, 
 		return nil, err
 	}
 
-	return stack.MergeUpdates(newAnswers, newComments, questionTitle), nil
+	return stack.mergeUpdates(newAnswers, newComments, questionTitle), nil
 }
 
-func (stack *StackClient) MergeUpdates(newAnswers *StackAnswers, newComments *StackComments, title string) LinkUpdates {
+func (stack *StackClient) mergeUpdates(newAnswers *StackAnswers, newComments *StackComments, title string) LinkUpdates {
 	linkUpdates := make(LinkUpdates, 0, len(newAnswers.Answers)+len(newComments.Comments))
 
 	for _, update := range newAnswers.Answers {
-
 		linkUpdates = append(linkUpdates, &LinkUpdate{
 			Header:     title,
 			UserName:   update.Owner.UserName,
@@ -178,7 +179,6 @@ func (stack *StackClient) MergeUpdates(newAnswers *StackAnswers, newComments *St
 	}
 
 	for _, update := range newComments.Comments {
-
 		linkUpdates = append(linkUpdates, &LinkUpdate{
 			Header:     title,
 			UserName:   update.Owner.UserName,
@@ -190,11 +190,11 @@ func (stack *StackClient) MergeUpdates(newAnswers *StackAnswers, newComments *St
 	return linkUpdates
 }
 
-func (stack *StackClient) NewUpdate(req *http.Request, res any) error {
+func (stack *StackClient) NewUpdate(req *http.Request, update any) error {
 	resp, err := stack.client.Do(req)
 
 	if err != nil {
-		return fmt.Errorf("не смогли получить состояние ссылки, запрос кончился ошибкой :%w", err)
+		return siteclients.NewErrNetwork(clientName, req.URL.String(), err)
 	}
 
 	defer resp.Body.Close()
@@ -203,21 +203,21 @@ func (stack *StackClient) NewUpdate(req *http.Request, res any) error {
 		return siteclients.NewErrBadRequestStatus("не смогли получить состояние ссылки", resp.StatusCode)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(update); err != nil {
 		return fmt.Errorf("в клиете %s при парсиге ответа произошла ошибка: %w", clientName, err)
 	}
 
 	return nil
 }
 
-func (stack *StackClient) NewAnswers(pathArgs []string, since time.Time) (*StackAnswers, error) {
+func (stack *StackClient) NewAnswers(questionID string, since time.Time) (*StackAnswers, error) {
 	q := url.Values{}
 
 	q.Add(site, stackoverflow)
 	q.Add(fromDate, strconv.FormatInt(since.Unix(), 10))
 	q.Add(filter, answersFilter)
 
-	reqURL := stack.requestURL(pathArgs[indQuestionID], answers, q)
+	reqURL := stack.requestURL(questionID, answers, q)
 	req, err := http.NewRequest(http.MethodGet, reqURL.String(), http.NoBody)
 
 	if err != nil {
@@ -227,20 +227,20 @@ func (stack *StackClient) NewAnswers(pathArgs []string, since time.Time) (*Stack
 	newAnswers := &StackAnswers{}
 
 	if err = stack.NewUpdate(req, newAnswers); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ошибка при получении новых ответов: %w", err)
 	}
 
 	return newAnswers, nil
 }
 
-func (stack *StackClient) NewComments(pathArgs []string, since time.Time) (*StackComments, error) {
+func (stack *StackClient) NewComments(questionID string, since time.Time) (*StackComments, error) {
 	q := url.Values{}
 
 	q.Add(site, stackoverflow)
 	q.Add(fromDate, strconv.FormatInt(since.Unix(), 10))
 	q.Add(filter, commentsFilter)
 
-	reqURL := stack.requestURL(pathArgs[indQuestionID], comments, q)
+	reqURL := stack.requestURL(questionID, comments, q)
 	req, err := http.NewRequest(http.MethodGet, reqURL.String(), http.NoBody)
 
 	if err != nil {
@@ -250,7 +250,7 @@ func (stack *StackClient) NewComments(pathArgs []string, since time.Time) (*Stac
 	newComments := &StackComments{}
 
 	if err = stack.NewUpdate(req, newComments); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ошибка при получении новых комментариев: %w", err)
 	}
 
 	return newComments, nil
@@ -275,22 +275,10 @@ func (stack *StackClient) getQuestionTitle(pathArgs []string) (string, error) {
 		return "", fmt.Errorf("в клиете %s при формировании запроса произошла ошибка: %w", clientName, err)
 	}
 
-	resp, err := stack.client.Do(req)
-
-	if err != nil {
-		return "", fmt.Errorf("не смогли получить состояние ссылки, запрос кончился ошибкой :%w", err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", siteclients.NewErrBadRequestStatus("не смогли получить состояние ссылки", resp.StatusCode)
-	}
-
 	answers := &StackAnswers{}
 
-	if err := json.NewDecoder(resp.Body).Decode(answers); err != nil {
-		return "", fmt.Errorf("в клиете %s при парсиге ответа произошла ошибка: %w", clientName, err)
+	if err = stack.NewUpdate(req, answers); err != nil {
+		return "", fmt.Errorf("ошибка при получении заголовка вопроса: %w", err)
 	}
 
 	return answers.Answers[0].Title, nil
@@ -305,7 +293,7 @@ func (stack *StackClient) requestURL(questionID, update string, q url.Values) *u
 	}
 }
 
-func HtmlStrCleaner(maxPreviewLen int) func(s string) string {
+func HTMLStrCleaner(maxPreviewLen int) func(s string) string {
 	p := bluemonday.StripTagsPolicy()
 
 	return func(s string) string {
