@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	//"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jackc/pgx/v5"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
@@ -26,49 +27,18 @@ type LinkID = scrapper.LinkID
 type Tag = scrapper.Tag
 
 type UserStorage struct {
-	dsn       string
 	batchSize int
-	db        *pgx.Conn
+	db        *pgxpool.Pool
 }
 
 type linkPaginator struct {
-	db         *pgx.Conn
+	db         *pgxpool.Pool
 	lastLinkID int64
 	limit      int
 }
 
-func NewStore(cfg *sql.DBConfig) *UserStorage {
-	return &UserStorage{dsn: cfg.ToDSN(), batchSize: cfg.BatchSize}
-}
-
-func (u *UserStorage) Open() error {
-	con, err := pgx.Connect(context.Background(), u.dsn)
-
-	fmt.Println(u.dsn)
-
-	if err != nil {
-		return fmt.Errorf("при создании conn возникла ошибка: %w", err)
-	}
-
-	if err = con.Ping(context.Background()); err != nil {
-		return fmt.Errorf("при установлении конекта с БД произошла ошибка: %w", err)
-	}
-
-	u.db = con
-
-	//m, err := migrate.New("file://"+u.config.MigratePath, u.config.UrlDBMigrations)
-	//
-	//if err != nil {
-	//	return fmt.Errorf("при создании объекта миграций произошла ошибка: %w", err)
-	//}
-	//
-	//defer m.Close()
-	//
-	//if err = m.Up(); err != nil {
-	//	fmt.Errorf("при применении up миграций произошла ошибка: %w", err)
-	//}
-
-	return nil
+func NewStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) *UserStorage {
+	return &UserStorage{db: pgxPool, batchSize: dbConfig.BatchSize}
 }
 
 func (u *UserStorage) AllLinks() ([]LinkInfo, error) {
@@ -290,10 +260,6 @@ func (u *UserStorage) UntrackLink(user User, link Link) error {
 	}
 
 	return nil
-}
-
-func (u *UserStorage) Close() error {
-	return u.db.Close(context.Background())
 }
 
 func (u *UserStorage) NewLinksPaginator() scrapservice.LinkPaginator {

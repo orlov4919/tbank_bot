@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
@@ -24,37 +24,18 @@ type LinkID = scrapper.LinkID
 type Tag = scrapper.Tag
 
 type UserStorage struct {
-	dsn       string
 	batchSize int
-	db        *pgx.Conn
+	db        *pgxpool.Pool
 }
 
 type linkPaginator struct {
-	db         *pgx.Conn
+	db         *pgxpool.Pool
 	lastLinkID int64
 	limit      int
 }
 
-func NewStore(cfg *sql.DBConfig) *UserStorage {
-	return &UserStorage{dsn: cfg.ToDSN(), batchSize: cfg.BatchSize}
-}
-
-func (u *UserStorage) Open() error {
-	con, err := pgx.Connect(context.Background(), u.dsn)
-
-	fmt.Println(u.dsn)
-
-	if err != nil {
-		return fmt.Errorf("при создании conn возникла ошибка: %w", err)
-	}
-
-	if err = con.Ping(context.Background()); err != nil {
-		return fmt.Errorf("при установлении конекта с БД произошла ошибка: %w", err)
-	}
-
-	u.db = con
-
-	return nil
+func NewStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) *UserStorage {
+	return &UserStorage{db: pgxPool, batchSize: dbConfig.BatchSize}
 }
 
 func (u *UserStorage) AllLinks() ([]LinkInfo, error) {
@@ -307,10 +288,6 @@ func (u *UserStorage) UntrackLink(user User, link Link) error {
 	}
 
 	return nil
-}
-
-func (u *UserStorage) Close() error {
-	return u.db.Close(context.Background())
 }
 
 func (u *UserStorage) NewLinksPaginator() scrapservice.LinkPaginator {
