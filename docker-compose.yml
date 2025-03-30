@@ -22,7 +22,7 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - D:/tbank/go-orlov4919/migrations:/migrations
+      - ./migrations:/migrations
     command:
       -path /migrations
       -database "postgres://postgres:1234@postgres:5432/linkTraccer?sslmode=disable" up
