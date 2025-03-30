@@ -10,6 +10,10 @@ const (
 	descriptionFormat = "Пришло новое уведомление 🔥\n\nСобытие: %s\nПользователь: %s\nВремя создаения: %s\nПревью: %s\n\n"
 )
 
+var (
+	MoskowTime = time.FixedZone("UTC+3", 3*60*60)
+)
+
 type User = scrapper.User
 type Link = scrapper.Link
 type LinkState = scrapper.LinkState
@@ -73,7 +77,8 @@ func (scrap *Scrapper) CheckLinksUpdates() {
 					continue
 				}
 
-				t := time.Now().Truncate(time.Second)
+				t := time.Now().In(MoskowTime).Truncate(time.Second)
+
 				linkUpdates, err := siteClient.LinkUpdates(linkInfo.URL, linkInfo.LastUpdate)
 
 				if err != nil {

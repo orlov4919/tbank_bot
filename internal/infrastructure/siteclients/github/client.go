@@ -52,8 +52,6 @@ func NewClient(host, token string, client HTTPClient) *GitClient {
 	}
 }
 
-// УЖЕСТОЧИТЬ ПРОВЕРКИ НЕ ДОЛЖНАЯ ССЫЛКА https://github.com/orlov4919/test/issues прохоидить проверку, добавление новых тестов
-
 func (git *GitClient) CanTrack(link Link) bool {
 	parsedLink, err := url.Parse(link)
 
@@ -67,7 +65,7 @@ func (git *GitClient) CanTrack(link Link) bool {
 		return false
 	}
 
-	q := git.MakeQueryParams(pathArgs, time.Now().Truncate(time.Second))
+	q := git.makeQueryParams(pathArgs, time.Now().Truncate(time.Second))
 	reqURL := git.makeRequestURL(q)
 
 	req, err := http.NewRequest(http.MethodGet, reqURL.String(), http.NoBody)
@@ -92,11 +90,7 @@ func (git *GitClient) CanTrack(link Link) bool {
 func (git *GitClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string) bool {
 	cleanedHost := strings.TrimPrefix(parsedLink.Host, "www.")
 
-	if cleanedHost != gitHubHost || parsedLink.Scheme != git.scheme {
-		return false
-	}
-
-	if len(pathArgs) != pathLen {
+	if cleanedHost != gitHubHost || parsedLink.Scheme != git.scheme || len(pathArgs) != pathLen {
 		return false
 	}
 
@@ -109,7 +103,6 @@ func (git *GitClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string) bo
 
 func (git *GitClient) LinkUpdates(link Link, updatesSince time.Time) (LinkUpdates, error) {
 	parsedLink, err := url.Parse(link)
-
 	updatesSince = updatesSince.Add(-time.Hour * 3)
 
 	if err != nil {
@@ -122,7 +115,7 @@ func (git *GitClient) LinkUpdates(link Link, updatesSince time.Time) (LinkUpdate
 		return nil, siteclients.NewErrClientCantTrackLink(link, clientName)
 	}
 
-	q := git.MakeQueryParams(pathArgs, updatesSince)
+	q := git.makeQueryParams(pathArgs, updatesSince)
 	reqURL := git.makeRequestURL(q)
 	req, err := http.NewRequest(http.MethodGet, reqURL.String(), http.NoBody)
 
@@ -135,7 +128,7 @@ func (git *GitClient) LinkUpdates(link Link, updatesSince time.Time) (LinkUpdate
 	resp, err := git.client.Do(req)
 
 	if err != nil {
-		return nil, fmt.Errorf("не смогли получить состояние ссылки, запрос кончился ошибкой :%w", err)
+		return nil, siteclients.NewErrNetwork(clientName, req.URL.String(), err)
 	}
 
 	defer resp.Body.Close()
@@ -150,29 +143,27 @@ func (git *GitClient) LinkUpdates(link Link, updatesSince time.Time) (LinkUpdate
 		return nil, fmt.Errorf("в клиете %s при парсиге ответа произошла ошибка: %w", clientName, err)
 	}
 
-	return git.GitUpdatesToLinkUpdates(gitUpdates), nil
+	return git.gitUpdatesToLinkUpdates(gitUpdates), nil
 }
 
-func (git *GitClient) GitUpdatesToLinkUpdates(gitUpdates *GitUpdates) LinkUpdates {
+func (git *GitClient) gitUpdatesToLinkUpdates(gitUpdates *GitUpdates) LinkUpdates {
 	var updateType string
 
 	linkUpdates := make([]*LinkUpdate, 0, gitUpdates.Count)
 
 	for _, update := range gitUpdates.Updates {
-
 		if update.PullRequest.URL == "" {
 			updateType = issue
 		} else {
 			updateType = pullRequest
 		}
 
-		createdTime, _ := time.Parse("2006-01-02T15:04:05Z", update.CreatedTime)
-		createdTimeToMsk := createdTime.Add(time.Hour * 3)
+		createdTimeToMsk := update.CreatedTime.Add(time.Hour * 3).Format("15:04:05 02-01-2006")
 
 		linkUpdates = append(linkUpdates, &LinkUpdate{
 			Header:     updateType,
 			UserName:   update.GitUser.Login,
-			CreateTime: createdTimeToMsk.String(),
+			CreateTime: createdTimeToMsk,
 			Preview:    update.Title[:min(len(update.Title), maxTitleLen)],
 		})
 	}
@@ -180,7 +171,7 @@ func (git *GitClient) GitUpdatesToLinkUpdates(gitUpdates *GitUpdates) LinkUpdate
 	return linkUpdates
 }
 
-func (git *GitClient) MakeQueryParams(pathArgs []string, updatesSince time.Time) url.Values {
+func (git *GitClient) makeQueryParams(pathArgs []string, updatesSince time.Time) url.Values {
 	q := url.Values{}
 
 	q.Add("q", makeQueryString(pathArgs[repoCreaterInd], pathArgs[repoNameInd], updatesSince))

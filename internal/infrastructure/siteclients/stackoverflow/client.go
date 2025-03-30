@@ -127,6 +127,8 @@ func (stack *StackClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string
 func (stack *StackClient) LinkUpdates(link Link, since time.Time) (LinkUpdates, error) {
 	var questionTitle string
 
+	since = since.Add(-time.Hour * 4)
+
 	parsedLink, err := url.Parse(link)
 
 	if err != nil {
@@ -173,7 +175,7 @@ func (stack *StackClient) mergeUpdates(newAnswers *StackAnswers, newComments *St
 		linkUpdates = append(linkUpdates, &LinkUpdate{
 			Header:     title,
 			UserName:   update.Owner.UserName,
-			CreateTime: time.Unix(update.UpdateTime, 0).Format("2006-01-02T15:04:05Z"),
+			CreateTime: time.Unix(update.UpdateTime, 0).Format("15:04:05 02-01-2006"),
 			Preview:    stack.strCleaner(update.Body),
 		})
 	}
@@ -182,7 +184,7 @@ func (stack *StackClient) mergeUpdates(newAnswers *StackAnswers, newComments *St
 		linkUpdates = append(linkUpdates, &LinkUpdate{
 			Header:     title,
 			UserName:   update.Owner.UserName,
-			CreateTime: time.Unix(update.UpdateTime, 0).Format("2006-01-02T15:04:05Z"),
+			CreateTime: time.Unix(update.UpdateTime, 0).Format("15:04:05 02-01-2006"),
 			Preview:    stack.strCleaner(update.Body),
 		})
 	}
@@ -218,6 +220,9 @@ func (stack *StackClient) NewAnswers(questionID string, since time.Time) (*Stack
 	q.Add(filter, answersFilter)
 
 	reqURL := stack.requestURL(questionID, answers, q)
+
+	fmt.Println(reqURL.String())
+
 	req, err := http.NewRequest(http.MethodGet, reqURL.String(), http.NoBody)
 
 	if err != nil {

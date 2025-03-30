@@ -66,10 +66,10 @@ type GitUpdates struct {
 }
 
 type GitUpdate struct {
-	GitUser     GitUser `json:"user"`
-	Title       string  `json:"title"`
-	CreatedTime string  `json:"created_at"`
-	PullRequest PR      `json:"pull_request"`
+	GitUser     GitUser   `json:"user"`
+	Title       string    `json:"title"`
+	CreatedTime time.Time `json:"created_at"`
+	PullRequest PR        `json:"pull_request"`
 }
 
 type GitUser struct {

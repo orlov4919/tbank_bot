@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -21,13 +22,13 @@ const (
 	testToken = "123456789"
 )
 
-var jsonData = []byte(`[{ "updated_at" : "2025-02-25T11:39:14Z"}]`)
-var randomData = []byte("abcdsdfsdf")
-var emptyData = []byte(`[]`)
-var errTest = errors.New("произошел таймаут")
+var (
+	jsonData   = []byte(`{"items" : [{ "created_at" : "2025-02-25T11:39:14Z"}]}`)
+	randomData = []byte("abcdsdfsdf")
+	errTest    = errors.New("произошел таймаут")
+)
 
 type Link = scrapper.Link
-type LinkState = scrapper.LinkState
 
 func TestGitClient_StaticLinkCheck(t *testing.T) {
 	mockClient := mocks.NewHTTPClient(t)
@@ -66,8 +67,13 @@ func TestGitClient_StaticLinkCheck(t *testing.T) {
 			correct: true,
 		},
 		{
-			name:    "Не корректная ссылка",
+			name:    "Не указан репозиторий",
 			link:    "https://github.com//",
+			correct: false,
+		},
+		{
+			name:    "Слишком длинная ссылка",
+			link:    "https://github.com/orlov4919/test/issues",
 			correct: false,
 		},
 	}
@@ -81,13 +87,13 @@ func TestGitClient_StaticLinkCheck(t *testing.T) {
 }
 
 func TestGitClient_CanTrack(t *testing.T) {
-	badClient := mocks.NewHTTPClient(t)
-	timeoutClient := mocks.NewHTTPClient(t)
-	goodClient := mocks.NewHTTPClient(t)
+	clientWith404 := mocks.NewHTTPClient(t)
+	clientWithErr := mocks.NewHTTPClient(t)
+	clientWithOK := mocks.NewHTTPClient(t)
 
-	badClient.On("Do", mock.Anything).Return(&http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(nil)}, nil)
-	timeoutClient.On("Do", mock.Anything).Return(nil, errTest)
-	goodClient.On("Do", mock.Anything).Return(&http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(jsonData))}, nil)
+	clientWith404.On("Do", mock.Anything).Return(&http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(nil)}, nil)
+	clientWithErr.On("Do", mock.Anything).Return(nil, errTest)
+	clientWithOK.On("Do", mock.Anything).Return(&http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(jsonData))}, nil)
 
 	type testCase struct {
 		name    string
@@ -98,27 +104,33 @@ func TestGitClient_CanTrack(t *testing.T) {
 
 	tests := []testCase{
 		{
+			name:    "Ошибка при парсинге ссылки",
+			link:    "\nhttps://gitehube.com/orlov4919/test",
+			client:  clientWithOK,
+			correct: false,
+		},
+		{
 			name:    "Передаем ссылку с неправильным хостом",
 			link:    "https://gitehube.com/orlov4919/test",
-			client:  badClient,
+			client:  clientWith404,
 			correct: false,
 		},
 		{
 			name:    "Передаем клиента, который таймаутит",
 			link:    "https://github.com/orlov4919/test",
-			client:  timeoutClient,
+			client:  clientWithErr,
 			correct: false,
 		},
 		{
 			name:    "Пытаемся отследить репозиторий, которого нет",
 			link:    "https://github.com/orlov4919/test1234",
-			client:  badClient,
+			client:  clientWith404,
 			correct: false,
 		},
 		{
 			name:    "Отслеживаем существующий репозиторий",
 			link:    "https://github.com/orlov4919/test",
-			client:  goodClient,
+			client:  clientWithOK,
 			correct: true,
 		},
 	}
@@ -130,82 +142,80 @@ func TestGitClient_CanTrack(t *testing.T) {
 	}
 }
 
-func TestGitClient_LinkState(t *testing.T) {
-	badClient := mocks.NewHTTPClient(t)
-	timeoutClient := mocks.NewHTTPClient(t)
-	goodClient := mocks.NewHTTPClient(t)
-	wrongBodyClient := mocks.NewHTTPClient(t)
-	emptyBodyClient := mocks.NewHTTPClient(t)
+func TestGitClient_LinkUpdates(t *testing.T) {
+	clientWith404 := mocks.NewHTTPClient(t)
+	clientWithErr := mocks.NewHTTPClient(t)
+	clientWithWrongJSON := mocks.NewHTTPClient(t)
+	clientWithOK := mocks.NewHTTPClient(t)
 
-	badClient.On("Do", mock.Anything).
+	clientWith404.On("Do", mock.Anything).
 		Return(&http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(nil)}, nil)
-	timeoutClient.On("Do", mock.Anything).
+	clientWithErr.On("Do", mock.Anything).
 		Return(nil, errTest)
-	goodClient.On("Do", mock.Anything).
-		Return(&http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(jsonData))}, nil)
-	wrongBodyClient.On("Do", mock.Anything).
+	clientWithWrongJSON.On("Do", mock.Anything).
 		Return(&http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(randomData))}, nil)
-	emptyBodyClient.On("Do", mock.Anything).
-		Return(&http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(emptyData))}, nil)
+	clientWithOK.On("Do", mock.Anything).
+		Return(&http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(jsonData))}, nil)
 
 	type testCase struct {
 		name    string
 		link    Link
-		state   LinkState
 		client  github.HTTPClient
 		correct bool
+		updates scrapper.LinkUpdates
 	}
 
 	tests := []testCase{
 		{
+			name:    "Произошла ошибка при парсинге ссылки",
+			link:    "\nhttps://gitehube.com/orlov4919/test",
+			client:  clientWith404,
+			correct: false,
+		},
+		{
 			name:    "Передаем ссылку с неправильным хостом",
 			link:    "https://gitehube.com/orlov4919/test",
-			client:  badClient,
+			client:  clientWith404,
 			correct: false,
 		},
 		{
-			name:    "Передаем клиента, который таймаутит",
+			name:    "Передаем клиента, который возвращает 404",
 			link:    "https://github.com/orlov4919/test",
-			client:  timeoutClient,
+			client:  clientWith404,
 			correct: false,
 		},
 		{
-			name:    "Пытаемся отследить репозиторий, которого нет",
-			link:    "https://github.com/orlov4919/test1234",
-			client:  badClient,
-			correct: false,
-		},
-		{
-			name:    "Отслеживаем существующий репозиторий",
+			name:    "Запрос падает с ошибкой",
 			link:    "https://github.com/orlov4919/test",
-			state:   "2025-02-25T11:39:14Z",
-			client:  goodClient,
+			client:  clientWithErr,
+			correct: false,
+		},
+		{
+			name:    "Получили неверный JSON в ответе",
+			link:    "https://github.com/orlov4919/test",
+			client:  clientWithWrongJSON,
+			correct: false,
+		},
+		{
+
+			name:    "Получение обновлений выполнено успешно",
+			link:    "https://github.com/orlov4919/test",
+			client:  clientWithOK,
 			correct: true,
-		},
-		{
-			name:    "Сервер прислал неправильный json",
-			link:    "https://github.com/orlov4919/test",
-			client:  wrongBodyClient,
-			correct: false,
-		},
-		{
-			name:    "В репозитории еще нет issue",
-			link:    "https://github.com/orlov4919/test",
-			client:  emptyBodyClient,
-			correct: true,
+			updates: scrapper.LinkUpdates{&scrapper.LinkUpdate{
+				CreateTime: "14:39:14 25-02-2025",
+				Header:     "Issue",
+			}},
 		},
 	}
 
 	for _, test := range tests {
 		gitClient := github.NewClient(testHost, testToken, test.client)
-
-		state, err := gitClient.LinkUpdates(test.link)
-
-		assert.Equal(t, test.state, state)
+		updates, err := gitClient.LinkUpdates(test.link, time.Now())
 
 		if test.correct {
 			assert.NoError(t, err)
-			assert.Equal(t, test.state, state)
+			assert.ElementsMatch(t, test.updates, updates)
 		} else {
 			assert.Error(t, err)
 		}
