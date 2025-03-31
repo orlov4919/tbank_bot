@@ -15,7 +15,7 @@ func (e *ErrWithStorage) Error() string {
 }
 
 type ErrUserNotRegistered struct {
-	msg int
+	msg int64
 }
 
 func NewErrUserNotRegistered(id User) *ErrUserNotRegistered {

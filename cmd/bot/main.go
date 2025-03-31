@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
 	"linkTraccer/internal/application/botservice"
 	"linkTraccer/internal/infrastructure/botconfig"
 	"linkTraccer/internal/infrastructure/bothandler"
@@ -48,13 +49,13 @@ func main() {
 
 	s.StartAsync()
 
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
 
-	mux.HandleFunc("/updates", bothandler.New(tgClient, logger).HandleLinkUpdates)
+	r.HandleFunc("/updates", bothandler.New(tgClient, logger).HandleLinkUpdates).Methods(http.MethodPost)
 
 	srv := &http.Server{
 		Addr:         config.BotPort,
-		Handler:      mux,
+		Handler:      r,
 		ReadTimeout:  30 * time.Second, // Таймаут чтения запроса
 		WriteTimeout: 30 * time.Second, // Таймаут записи ответа
 		IdleTimeout:  30 * time.Second, // Таймаут простоя соединения

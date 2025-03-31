@@ -49,6 +49,8 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	defer r.Body.Close()
+
 	userID, err := strconv.ParseInt(r.Header.Get("Tg-Chat-Id"), 10, 64)
 
 	if err != nil {

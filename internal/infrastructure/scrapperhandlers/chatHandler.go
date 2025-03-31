@@ -3,21 +3,17 @@ package scrapperhandlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"linkTraccer/internal/domain/dto"
 	"log/slog"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 const (
-	contentType     = "Content-Type"
-	jsonType        = "application/json"
-	wrongID         = "id не соответствует числу"
-	negativeID      = "полученное id < 0, должно быть id >=0"
-	errId           = "id error"
-	idRegistered    = "id уже зарегистрирован"
-	idNotRegistered = "id не зарегистрирован"
+	contentType = "Content-Type"
+	jsonType    = "application/json"
 )
 
 type ChatHandler struct {
@@ -35,14 +31,16 @@ func NewChatHandler(repo UserRepo, log *slog.Logger) *ChatHandler {
 func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
 
+	defer r.Body.Close()
+
 	if err != nil {
-		c.APIErrToResponse(w, dto.ApiErrIDNotNum, http.StatusBadRequest)
+		c.apiErrToResponse(w, dto.ApiErrIDNotNum, http.StatusBadRequest)
 
 		return
 	}
 
 	if userID < 0 {
-		c.APIErrToResponse(w, dto.ApiErrNegativeID, http.StatusBadRequest)
+		c.apiErrToResponse(w, dto.ApiErrNegativeID, http.StatusBadRequest)
 
 		return
 	}
@@ -72,9 +70,8 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *ChatHandler) PostHandler(w http.ResponseWriter, userID int64, userExist bool) {
-
 	if userExist {
-		c.APIErrToResponse(w, dto.ApiErrUserRegistered, http.StatusBadRequest)
+		c.apiErrToResponse(w, dto.ApiErrUserRegistered, http.StatusBadRequest)
 
 		return
 	}
@@ -92,9 +89,8 @@ func (c *ChatHandler) PostHandler(w http.ResponseWriter, userID int64, userExist
 }
 
 func (c *ChatHandler) DeleteHandler(w http.ResponseWriter, userID int64, userExist bool) {
-
 	if !userExist {
-		c.APIErrToResponse(w, dto.ApiErrUserNotRegistered, http.StatusNotFound)
+		c.apiErrToResponse(w, dto.ApiErrUserNotRegistered, http.StatusNotFound)
 
 		return
 	}
@@ -110,7 +106,7 @@ func (c *ChatHandler) DeleteHandler(w http.ResponseWriter, userID int64, userExi
 	w.WriteHeader(http.StatusOK)
 }
 
-func (c *ChatHandler) APIErrToResponse(w http.ResponseWriter, errAPI *dto.APIErrResponse, statusCode int) {
+func (c *ChatHandler) apiErrToResponse(w http.ResponseWriter, errAPI *dto.APIErrResponse, statusCode int) {
 	w.Header().Set(contentType, jsonType)
 	w.WriteHeader(statusCode)
 

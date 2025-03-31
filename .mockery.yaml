@@ -15,7 +15,7 @@ packages:
       dir: mocks
     interfaces:
       HTTPClient:
-  linkTraccer/internal/application/scrapperService:
+  linkTraccer/internal/application/scrapper/scrapservice:
     config:
       dir: mocks
     interfaces:
