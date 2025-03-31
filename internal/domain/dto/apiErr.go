@@ -17,23 +17,35 @@ const (
 
 // exceptions name
 const (
-	errId = "id error"
+	errId   = "id error"
+	errBody = "body error"
+	errLink = "link erroe"
 )
 
 // exceptions message
 const (
-	idNotNum        = "id не соответствует числу"
-	negativeID      = "полученное id < 0, должно быть id >=0"
-	idRegistered    = "id уже зарегистрирован"
-	idNotRegistered = "id не зарегистрирован"
+	idNotNum             = "id не соответствует числу"
+	negativeID           = "полученное id < 0, должно быть id >=0"
+	idRegistered         = "id уже зарегистрирован"
+	idNotRegistered      = "id не зарегистрирован"
+	cantReadBody         = "не возможно прочитать body"
+	badBodyJSON          = "JSON имеет не правильный формат"
+	cantTrackLink        = "переданная ссылка не поддерживается"
+	userAlreadyTrackLink = "пользователь уже отслеживает эту ссылку"
+	userNotTrackLink     = "пользователь не отслеживает эту ссылку"
 )
 
-// api errors
+// api errors chat handler
 var (
 	ApiErrIDNotNum          = newAPIErrResponse(wrongRequestArg, errId, idNotNum, httpStatusBadRequest)
 	ApiErrNegativeID        = newAPIErrResponse(wrongRequestArg, errId, negativeID, httpStatusBadRequest)
 	ApiErrUserRegistered    = newAPIErrResponse(wrongRequestArg, errId, idRegistered, httpStatusBadRequest)
 	ApiErrUserNotRegistered = newAPIErrResponse(wrongRequestArg, errId, idNotRegistered, httpStatusNotFound)
+	ApiErrCantReadBody      = newAPIErrResponse(wrongRequestArg, errBody, cantReadBody, httpStatusBadRequest)
+	ApiErrBadJSON           = newAPIErrResponse(wrongRequestArg, errBody, badBodyJSON, httpStatusBadRequest)
+	ApiErrBadLink           = newAPIErrResponse(wrongRequestArg, errLink, cantTrackLink, httpStatusBadRequest)
+	ApiErrDuplicateLink     = newAPIErrResponse(wrongRequestArg, errLink, userAlreadyTrackLink, httpStatusBadRequest)
+	ApiErrNotTrackLink      = newAPIErrResponse(wrongRequestArg, errLink, userNotTrackLink, httpStatusNotFound)
 )
 
 type APIErrResponse struct {

@@ -27,6 +27,7 @@ paths:
                 $ref: '#/components/schemas/ApiErrorResponse'
         '405':
           description: Метод не поддерживается
+
     delete:
       summary: Удалить чат
       parameters:
@@ -51,8 +52,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
-        '405':
-          description: Метод не поддерживается
+
   /links:
     get:
       summary: Получить все отслеживаемые ссылки
@@ -76,6 +76,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          description: Внутренняя ошибка
+
     post:
       summary: Добавить отслеживание ссылки
       parameters:
@@ -104,6 +107,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          description: Внутренняя ошибка
     delete:
       summary: Убрать отслеживание ссылки
       parameters:
@@ -140,29 +145,30 @@ paths:
                 $ref: '#/components/schemas/ApiErrorResponse'
         '500':
           description: Внутренняя ошибка
-  /tagedlinks:
-    get:
-      summary: Получить все отслеживаемые ссылки по тегам
-      parameters:
-        - name: Tg-Chat-Id
-          in: header
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Ссылки успешно получены
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ListTagedLinks'
-        '400':
-          description: Некорректные параметры запроса
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiErrorResponse'
+
+#  /tagedlinks:
+#    get:
+#      summary: Получить все отслеживаемые ссылки по тегам
+#      parameters:
+#        - name: Tg-Chat-Id
+#          in: header
+#          required: true
+#          schema:
+#            type: integer
+#            format: int64
+#      responses:
+#        '200':
+#          description: Ссылки успешно получены
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/ListTagedLinks'
+#        '400':
+#          description: Некорректные параметры запроса
+#          content:
+#            application/json:
+#              schema:
+#                $ref: '#/components/schemas/ApiErrorResponse'
 
 
 

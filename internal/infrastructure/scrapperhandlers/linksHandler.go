@@ -15,6 +15,10 @@ import (
 	"strconv"
 )
 
+var (
+	MoskowTime = time.FixedZone("UTC+3", 3*60*60)
+)
+
 type LinkResponse = scrapper.LinkResponse
 type ListLinksResponse = scrapper.ListLinksResponse
 type UserRepo = scrapservice.UserRepo
@@ -37,33 +41,42 @@ func NewLinkHandler(repo UserRepo, log *slog.Logger, clients ...SiteClient) *Lin
 }
 
 func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set(contentType, jsonType)
-
 	reqData, err := io.ReadAll(r.Body)
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(dto.newAPIErrResponse("ошибка тела запроса", err.Error(), []string{}))
-
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
+		l.APIErrToResponse(w, dto.ApiErrCantReadBody, http.StatusBadRequest)
 
 		return
 	}
 
-	user := r.Header.Get("Tg-Chat-Id")
-	userID, err := strconv.ParseInt(user, 10, 64)
+	userID, err := strconv.ParseInt(r.Header.Get("Tg-Chat-Id"), 10, 64)
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		l.APIErrToResponse(w, dto.ApiErrIDNotNum, http.StatusBadRequest)
 
-		err := json.NewEncoder(w).Encode(dto.newAPIErrResponse("id error", "no id in req", []string{}))
+		return
+	}
 
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
+	if userID < 0 {
+		l.APIErrToResponse(w, dto.ApiErrNegativeID, http.StatusBadRequest)
+
+		return
+	}
+
+	userExist, err := l.userRepo.UserExist(userID)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+
+		l.log.Info(
+			fmt.Sprintf("обработка запроса %s закончилась ошибкой, при проверке пользователя в БД", r.URL.Path),
+			"err", err.Error())
+
+		return
+	}
+
+	if !userExist {
+		l.APIErrToResponse(w, dto.ApiErrUserNotRegistered, http.StatusBadRequest)
 
 		return
 	}
@@ -87,12 +100,12 @@ func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int64) {
 	userLinks, err := l.userRepo.AllUserLinks(userID)
 
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(dto.newAPIErrResponse("id error", "id exist", []string{}))
+		w.WriteHeader(http.StatusInternalServerError)
 
 		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
+			l.log.Info(
+				fmt.Sprintf("ошибка при получении всех ссылок пользователя %d", userID),
+				"err", err.Error())
 		}
 
 		return
@@ -111,50 +124,33 @@ func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int64) {
 	}
 
 	listLinksResponse.Size = len(listLinksResponse.Links)
-	err = json.NewEncoder(w).Encode(listLinksResponse)
 
-	if err != nil {
-		l.log.Info("Ошибка при формировании json ответа", "err", err)
+	if err = json.NewEncoder(w).Encode(listLinksResponse); err != nil {
+		l.log.Info(fmt.Sprintf("ошибка при формировании JSON всех ссылок пользователя %d", userID),
+			"err", err)
 	}
 }
 
 func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, reqData []byte) {
 	addLinkRequest := &AddLinkRequest{}
 
-	fmt.Println()
-
-	err := json.Unmarshal(reqData, addLinkRequest)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(dto.newAPIErrResponse("json err", err.Error(), []string{}))
-
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
+	if err := json.Unmarshal(reqData, addLinkRequest); err != nil {
+		l.APIErrToResponse(w, dto.ApiErrBadJSON, http.StatusBadRequest)
 
 		return
 	}
 
-	flag := false
+	canTrackLink := false
 
 	for _, client := range l.siteClients {
 		if client.CanTrack(addLinkRequest.Link) {
-			flag = true
+			canTrackLink = true
 			break
 		}
 	}
 
-	if !flag {
-
-		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(dto.newAPIErrResponse("link err", "link not support", []string{}))
-
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
+	if !canTrackLink {
+		l.APIErrToResponse(w, dto.ApiErrBadLink, http.StatusBadRequest)
 
 		return
 	}
@@ -163,29 +159,28 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		l.log.Info("ошибка при проверке отслеживания ссылки", "err", err)
+
+		l.log.Info(fmt.Sprintf("ошибка при проверке, отслеживает пользователь %d ссылку %s",
+			userID, addLinkRequest.Link),
+			"err", err)
 
 		return
 	}
 
 	if userTrackLink {
-		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(dto.newAPIErrResponse("already track", "user track this link", []string{}))
-
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
+		l.APIErrToResponse(w, dto.ApiErrDuplicateLink, http.StatusBadRequest)
 
 		return
 	}
 
-	err = l.userRepo.TrackLink(userID, addLinkRequest.Link, time.Now().Truncate(time.Second))
+	err = l.userRepo.TrackLink(userID, addLinkRequest.Link, time.Now().In(MoskowTime).Truncate(time.Second))
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
-		l.log.Info("ошибка при добавлении ссылки", "err", err)
+		l.log.Info(fmt.Sprintf("ошибка при добавление отслеживания пользователем %d ссылки %s",
+			userID, addLinkRequest.Link),
+			"err", err)
 
 		return
 	}
@@ -206,16 +201,9 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 
 func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, reqData []byte) {
 	removeLink := &RemoveLink{}
-	err := json.Unmarshal(reqData, removeLink)
 
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-
-		err := json.NewEncoder(w).Encode(dto.newAPIErrResponse("json error", "wrong json format", []string{}))
-
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
+	if err := json.Unmarshal(reqData, removeLink); err != nil {
+		l.APIErrToResponse(w, dto.ApiErrBadJSON, http.StatusBadRequest)
 
 		return
 	}
@@ -224,16 +212,17 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, r
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		l.log.Info("ошибка при проверке отслеживания ссылки", "err", err)
+
+		l.log.Info(fmt.Sprintf("ошибка при проверке, отслеживает пользователь %d ссылку %s",
+			userID, removeLink.Link),
+			"err", err)
 
 		return
 	}
 
 	if userTrackLink {
 
-		err = l.userRepo.UntrackLink(userID, removeLink.Link)
-
-		if err != nil {
+		if err = l.userRepo.UntrackLink(userID, removeLink.Link); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 
 			l.log.Info("ошибка при удалении ссылки", "err", err)
@@ -255,13 +244,20 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, r
 		if err != nil {
 			l.log.Info("Ошибка при формировании json ответа", "err", err)
 		}
-	} else {
-		w.WriteHeader(http.StatusNotFound)
 
-		err := json.NewEncoder(w).Encode(dto.newAPIErrResponse("link err", "dont tracc link", []string{}))
+		return
+	}
 
-		if err != nil {
-			l.log.Info("Ошибка при формировании json ответа", "err", err)
-		}
+	l.APIErrToResponse(w, dto.ApiErrNotTrackLink, http.StatusNotFound)
+}
+
+func (l *LinkHandler) APIErrToResponse(w http.ResponseWriter, errAPI *dto.APIErrResponse, statusCode int) {
+	w.Header().Set(contentType, jsonType)
+	w.WriteHeader(statusCode)
+
+	err := json.NewEncoder(w).Encode(errAPI)
+
+	if err != nil {
+		l.log.Debug("ошибка при формировании JSON APIErrResponse", "err", err.Error())
 	}
 }
