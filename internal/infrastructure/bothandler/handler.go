@@ -34,7 +34,7 @@ func New(client botservice.TgClient, log *slog.Logger) *UpdatesHandler {
 
 func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		errorResponse := dto.NewAPIErrResponse(methodError, fmt.Sprintf(methodErrorDescription, r.Method), []string{})
+		errorResponse := dto.newAPIErrResponse(methodError, fmt.Sprintf(methodErrorDescription, r.Method), []string{})
 
 		s.WriteInResponse(w, http.StatusMethodNotAllowed, errorResponse)
 
@@ -44,7 +44,7 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 	bodyData, err := io.ReadAll(r.Body)
 
 	if err != nil {
-		errorResponse := dto.NewAPIErrResponse(ReadBodyError, err.Error(), []string{})
+		errorResponse := dto.newAPIErrResponse(ReadBodyError, err.Error(), []string{})
 
 		s.WriteInResponse(w, http.StatusBadRequest, errorResponse)
 
@@ -56,7 +56,7 @@ func (s *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 	linkUpdate := &dto.LinkUpdate{}
 
 	if err = json.Unmarshal(bodyData, linkUpdate); err != nil {
-		errorResponse := dto.NewAPIErrResponse(jsonError, err.Error(), []string{})
+		errorResponse := dto.newAPIErrResponse(jsonError, err.Error(), []string{})
 
 		s.WriteInResponse(w, http.StatusBadRequest, errorResponse)
 	} else {
