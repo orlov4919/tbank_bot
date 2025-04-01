@@ -27,6 +27,12 @@ func New(client botservice.TgClient, log *slog.Logger) *UpdatesHandler {
 }
 
 func (u *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+
+		return
+	}
+
 	bodyData, err := io.ReadAll(r.Body)
 
 	if err != nil {

@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"linkTraccer/internal/application/botservice/mocks"
 	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/infrastructure/bothandler"
+	"linkTraccer/internal/infrastructure/bothandler/mocks"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -14,91 +14,46 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-var logLevel = slog.LevelDebug
+var (
+	logLevel = slog.LevelDebug
+	logger   = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 
-var logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
-var randomStrBytes = []byte("hello word")
+	wrongJSON = []byte("Hello World")
 
-var testJSON = &dto.APIErrResponse{
-	Description: "ошибка для тестирования",
-	Code:        "400",
-}
-
-var linkUpdate = &dto.LinkUpdate{
-	ID:          1,
-	URL:         "google.com",
-	Description: "Новое уведомление",
-	TgChatIDs:   []int{1, 2},
-}
-
-func TestUpdateServer_WriteResponseData(t *testing.T) {
-	tgClient := mocks.NewTgClient(t)
-	botHandler := bothandler.New(tgClient, logger)
-
-	type TestCase struct {
-		codeHTTP int
-		data     any
-	}
-
-	tests := []TestCase{
-		{
-			codeHTTP: 200,
-			data:     nil,
-		},
-		{
-			codeHTTP: 400,
-			data:     testJSON,
-		},
-	}
-
-	for _, test := range tests {
-		w := httptest.NewRecorder()
-
-		botHandler.WriteInResponse(w, test.codeHTTP, test.data)
-		assert.Equal(t, test.codeHTTP, w.Code)
-
-		if test.data != nil {
-			respJSON := &dto.APIErrResponse{}
-			respData, _ := io.ReadAll(w.Body)
-
-			_ = json.Unmarshal(respData, respJSON)
-			assert.Equal(t, test.data, respJSON)
-		}
-	}
-}
+	linkUpdateJSON, _ = json.Marshal(&dto.LinkUpdate{})
+)
 
 func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 	tgClient := mocks.NewTgClient(t)
-
-	tgClient.On("SendMessage", mock.Anything, mock.Anything).Return(nil)
-
 	botHandler := bothandler.New(tgClient, logger)
-	linkUpdateJSON, _ := json.Marshal(linkUpdate)
 
 	type testCase struct {
-		name       string
-		r          *http.Request
-		httpStatus int
+		name         string
+		r            *http.Request
+		responseBody *dto.APIErrResponse
+		httpStatus   int
 	}
 
 	tests := []testCase{
 		{
-			name:       "Тест на недопустимый метод сервера",
-			r:          &http.Request{Method: http.MethodGet},
-			httpStatus: http.StatusMethodNotAllowed,
+			name:         "некорректный json в запросе",
+			r:            &http.Request{Method: http.MethodPost, Body: io.NopCloser(bytes.NewBuffer(wrongJSON))},
+			responseBody: dto.ApiErrBadJSON,
+			httpStatus:   http.StatusBadRequest,
 		},
 		{
-			name:       "Тест на передачу не валидных данных",
-			r:          &http.Request{Method: http.MethodPost, Body: io.NopCloser(bytes.NewBuffer(randomStrBytes))},
-			httpStatus: http.StatusBadRequest,
+			name:         "передаем валидные данные",
+			r:            &http.Request{Method: http.MethodPost, Body: io.NopCloser(bytes.NewBuffer(linkUpdateJSON))},
+			responseBody: nil,
+			httpStatus:   http.StatusOK,
 		},
 		{
-			name:       "Тест на передачу валидных данных",
-			r:          &http.Request{Method: http.MethodPost, Body: io.NopCloser(bytes.NewBuffer(linkUpdateJSON))},
-			httpStatus: http.StatusOK,
+			name:         "отправляем не обрабатываемый запрос",
+			r:            &http.Request{Method: http.MethodGet, Body: io.NopCloser(bytes.NewBuffer(linkUpdateJSON))},
+			responseBody: nil,
+			httpStatus:   http.StatusMethodNotAllowed,
 		},
 	}
 
@@ -108,5 +63,17 @@ func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 		botHandler.HandleLinkUpdates(w, test.r)
 
 		assert.Equal(t, test.httpStatus, w.Code)
+
+		if test.responseBody != nil {
+			respBody := &dto.APIErrResponse{}
+
+			err := json.NewDecoder(w.Body).Decode(respBody)
+
+			assert.NoError(t, err)
+			assert.Equal(t, test.responseBody, respBody)
+
+		} else {
+			assert.Empty(t, w.Body)
+		}
 	}
 }
