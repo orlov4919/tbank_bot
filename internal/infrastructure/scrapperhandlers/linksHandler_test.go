@@ -1,292 +1,500 @@
 package scrapperhandlers_test
 
-//const (
-//	regID          = 3
-//	errID          = 2
-//	goodID         = 1
-//	errIDStr       = "2"
-//	goodIDStr      = "1"
-//	expectedLink   = "google.com"
-//	unexpectedLink = "tbank.ru"
-//	wrongStr       = "wrong data"
-//	newLink        = "stackoverflov.com"
-//)
-//
-//var trackedLink, _ = json.Marshal(addLinkRequest{Link: "google.com"})
-//var notSupportLink, _ = json.Marshal(addLinkRequest{Link: "tbank.ru"})
-//var newLinkJSON, _ = json.Marshal(addLinkRequest{Link: "stackoverflov.com"})
-//var removeAddedLink, _ = json.Marshal(removeLinkRequest{Link: "google.com"})
-//var removeNotAddedLink, _ = json.Marshal(removeLinkRequest{Link: "tbank.ru"})
-//
-//type link = scrapper.Link
-//type listLinksResponse = scrapper.ListLinksResponse
-//type linkResponse = scrapper.LinkResponse
-//type addLinkRequest = scrapper.AddLinkRequest
-//type removeLinkRequest = scrapper.RemoveLinkRequest
-//
-//func TestLinkHandler_GetMethodHandler(t *testing.T) {
-//	userRepo := mocks.NewUserRepo(t)
-//	stackClient, gitClient := mocks.NewSiteClient(t), mocks.NewSiteClient(t)
-//
-//	userRepo.On("AllUserLinks", errID).Return(nil, userstorage.NewErrWithStorage("нет id"))
-//	userRepo.On("AllUserLinks", goodID).Return([]link{expectedLink}, nil)
-//	userRepo.On("AllUserLinks", regID).Return([]link{}, nil)
-//
-//	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, logger, stackClient, gitClient)
-//
-//	type testCase struct {
-//		name       string
-//		userID     int
-//		httpStatus int
-//		correct    bool
-//		answer     listLinksResponse
-//	}
-//
-//	tests := []testCase{
-//		{
-//			name:       "Пытаемся получить ссылки незарегистрированного пользователя",
-//			userID:     errID,
-//			httpStatus: http.StatusBadRequest,
-//			correct:    false,
-//		},
-//		{
-//			name:       "Получаем ссылки зарегистрированного пользователя c сохраненными ссылками",
-//			userID:     goodID,
-//			httpStatus: http.StatusOK,
-//			correct:    true,
-//			answer: listLinksResponse{
-//				Links: []linkResponse{{
-//					ID:      0,
-//					URL:     expectedLink,
-//					Tags:    []string{},
-//					Filters: []string{},
-//				}},
-//				Size: 1,
-//			},
-//		},
-//		{
-//			name:       "Получаем ссылки зарегистрированного пользователя без ссылок",
-//			userID:     regID,
-//			httpStatus: http.StatusOK,
-//			correct:    true,
-//			answer: listLinksResponse{
-//				Links: []linkResponse{},
-//				Size:  0,
-//			},
-//		},
-//	}
-//
-//	for _, test := range tests {
-//		w := httptest.NewRecorder()
-//
-//		linkHandler.GetMethodHandler(w, test.userID)
-//		assert.Equal(t, test.httpStatus, w.Code)
-//
-//		if test.correct {
-//			listLinksResponse := &listLinksResponse{}
-//
-//			_ = json.NewDecoder(w.Body).Decode(listLinksResponse)
-//
-//			assert.Equal(t, test.answer.Size, listLinksResponse.Size)
-//			assert.ElementsMatch(t, test.answer.Links, listLinksResponse.Links)
-//		}
-//	}
-//}
-//
-//func TestLinkHandler_PostMethodHandler(t *testing.T) {
-//	userRepo := mocks.NewUserRepo(t)
-//
-//	stackClient := mocks.NewSiteClient(t)
-//
-//	stackClient.On("CanTrack", unexpectedLink).Return(false)
-//	stackClient.On("CanTrack", newLink).Return(true)
-//
-//	userRepo.On("UserTrackLink", goodID, expectedLink).Return(true)
-//	userRepo.On("UserTrackLink", goodID, unexpectedLink).Return(false)
-//	userRepo.On("UserTrackLink", goodID, newLink).Return(false)
-//	userRepo.On("TrackLink", goodID, newLink, mock.Anything).Return(nil)
-//
-//	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, logger, stackClient)
-//
-//	type testCase struct {
-//		name       string
-//		userID     int
-//		httpStatus int
-//		bodyData   []byte
-//		correct    bool
-//		answer     linkResponse
-//	}
-//
-//	tests := []testCase{
-//		{
-//			name:       "Передаем не правильные данные в запросе",
-//			userID:     goodID,
-//			httpStatus: http.StatusBadRequest,
-//			bodyData:   []byte(wrongStr),
-//			correct:    false,
-//		},
-//		{
-//			name:       "Передаем ссылку, которую пользователь уже отслеживает",
-//			userID:     goodID,
-//			httpStatus: http.StatusBadRequest,
-//			bodyData:   trackedLink,
-//			correct:    false,
-//		},
-//		{
-//			name:       "Передаем ссылку, которая не поддерживается клиентами",
-//			userID:     goodID,
-//			httpStatus: http.StatusBadRequest,
-//			bodyData:   notSupportLink,
-//			correct:    false,
-//		},
-//		{
-//			name:       "Передаем ссылку, которая поддерживается и которую еще не отслеживает",
-//			userID:     goodID,
-//			httpStatus: http.StatusOK,
-//			bodyData:   newLinkJSON,
-//			answer: linkResponse{
-//				ID:  1,
-//				URL: newLink,
-//			},
-//			correct: true,
-//		},
-//	}
-//
-//	for _, test := range tests {
-//		w := httptest.NewRecorder()
-//
-//		linkHandler.PostMethodHandler(w, test.userID, test.bodyData)
-//		assert.Equal(t, test.httpStatus, w.Code)
-//
-//		if test.correct {
-//			linksResponse := &linkResponse{}
-//
-//			_ = json.NewDecoder(w.Body).Decode(linksResponse)
-//
-//			assert.Equal(t, test.answer, *linksResponse)
-//		}
-//	}
-//}
-//
-//func TestLinkHandler_DeleteMethodHandler(t *testing.T) {
-//	userRepo := mocks.NewUserRepo(t)
-//	stackClient := mocks.NewSiteClient(t)
-//
-//	userRepo.On("UserTrackLink", goodID, expectedLink).Return(true)
-//	userRepo.On("UserTrackLink", goodID, unexpectedLink).Return(false)
-//	userRepo.On("UntrackLink", goodID, expectedLink).Return(nil)
-//
-//	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, logger, stackClient)
-//
-//	type testCase struct {
-//		name       string
-//		userID     int
-//		httpStatus int
-//		bodyData   []byte
-//		correct    bool
-//		answer     linkResponse
-//	}
-//
-//	tests := []testCase{
-//		{
-//			name:       "Передаем данные не соответствующие json",
-//			userID:     goodID,
-//			httpStatus: http.StatusBadRequest,
-//			bodyData:   []byte(wrongStr),
-//			correct:    false,
-//		},
-//		{
-//			name:       "Пытаемся удалить не добавленную ссылку",
-//			userID:     goodID,
-//			httpStatus: http.StatusNotFound,
-//			bodyData:   removeNotAddedLink,
-//			correct:    false,
-//		},
-//		{
-//			name:       "Пытаемся удалить добавленную ссылку",
-//			userID:     goodID,
-//			httpStatus: http.StatusOK,
-//			bodyData:   removeAddedLink,
-//			correct:    false,
-//			answer: linkResponse{
-//				ID:  1,
-//				URL: expectedLink,
-//			},
-//		},
-//	}
-//
-//	for _, test := range tests {
-//		w := httptest.NewRecorder()
-//
-//		linkHandler.DeleteMethodHandler(w, test.userID, test.bodyData)
-//		assert.Equal(t, test.httpStatus, w.Code)
-//
-//		if test.correct {
-//			linksResponse := &linkResponse{}
-//
-//			_ = json.NewDecoder(w.Body).Decode(linksResponse)
-//
-//			assert.Equal(t, test.answer, *linksResponse)
-//		}
-//	}
-//}
-//
-//func TestLinkHandler_HandleLinksChanges(t *testing.T) {
-//	userRepo := mocks.NewUserRepo(t)
-//	stackClient := mocks.NewSiteClient(t)
-//
-//	userRepo.On("AllUserLinks", errID).Return(nil, userstorage.NewErrWithStorage("нет ссылок"))
-//
-//	linkHandler := scrapperhandlers.NewLinkHandler(userRepo, logger, stackClient)
-//
-//	type testCase struct {
-//		name       string
-//		req        *http.Request
-//		httpStatus int
-//	}
-//
-//	tests := []testCase{
-//		{
-//			name:       "Передаем запрос с методом, который не поддерживается",
-//			req:        &http.Request{Method: http.MethodPut},
-//			httpStatus: http.StatusMethodNotAllowed,
-//		},
-//		{
-//			name:       "Передаем запрос без айди",
-//			req:        &http.Request{Method: http.MethodGet, Body: io.NopCloser(bytes.NewBuffer([]byte{}))},
-//			httpStatus: http.StatusBadRequest,
-//		},
-//		{
-//			name: "Передаем Get запрос, который вернет ошибку",
-//			req: &http.Request{
-//				Method: http.MethodGet,
-//				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
-//				Header: map[string][]string{"Tg-Chat-Id": {errIDStr}},
-//			},
-//			httpStatus: http.StatusBadRequest,
-//		},
-//		{
-//			name: "Передаем Post запрос, который вернет ошибку",
-//			req: &http.Request{
-//				Method: http.MethodPost,
-//				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
-//				Header: map[string][]string{"Tg-Chat-Id": {errIDStr}},
-//			},
-//			httpStatus: http.StatusBadRequest,
-//		},
-//		{
-//			name: "Передаем Delete запрос, который вернет ошибку",
-//			req: &http.Request{Method: http.MethodDelete,
-//				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
-//				Header: map[string][]string{"Tg-Chat-Id": {errIDStr}}},
-//			httpStatus: http.StatusBadRequest,
-//		},
-//	}
-//
-//	for _, test := range tests {
-//		w := httptest.NewRecorder()
-//		linkHandler.HandleLinksChanges(w, test.req)
-//
-//		assert.Equal(t, test.httpStatus, w.Code)
-//	}
-//}
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"linkTraccer/internal/application/scrapper/scrapservice"
+	"linkTraccer/internal/domain/dto"
+	"linkTraccer/internal/domain/scrapper"
+	"linkTraccer/internal/infrastructure/scrapperhandlers"
+	"linkTraccer/internal/infrastructure/scrapperhandlers/mocks"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+const (
+	wrongStr   = "Hello Word"
+	wrongLink  = "google.com"
+	goodLink   = "tbank.com"
+	idNotInt   = "hello"
+	negativeID = "-5"
+	goodID     = "5"
+)
+
+var (
+	expectedLink = "tbank.ru"
+
+	userLinks = &listLinksResponse{
+		Links: []LinkResponse{{
+			ID:      0,
+			URL:     expectedLink,
+			Tags:    []string{},
+			Filters: []string{},
+		}},
+		Size: 1,
+	}
+
+	addWrongLink, _     = json.Marshal(scrapper.AddLinkRequest{Link: wrongLink})
+	addGoodLink, _      = json.Marshal(scrapper.AddLinkRequest{Link: goodLink})
+	addGoodLinkResponse = &scrapper.LinkResponse{
+		ID:  1,
+		URL: goodLink,
+	}
+
+	removeGoodLink, _      = json.Marshal(scrapper.RemoveLinkRequest{Link: goodLink})
+	removeGoodLinkResponse = &scrapper.LinkResponse{ID: 1, URL: goodLink}
+)
+
+type Link = scrapper.Link
+type listLinksResponse = scrapper.ListLinksResponse
+type LinkResponse = scrapper.LinkResponse
+
+func TestLinkHandler_GetMethodHandler(t *testing.T) {
+	repoWithErr := mocks.NewUserRepo(t)
+	repoWithLinks := mocks.NewUserRepo(t)
+	repoWithoutLinks := mocks.NewUserRepo(t)
+
+	stackClient, gitClient := mocks.NewSiteClient(t), mocks.NewSiteClient(t)
+
+	repoWithErr.On("AllUserLinks", mock.Anything).Return(nil, errRepo)
+	repoWithLinks.On("AllUserLinks", mock.Anything).Return([]Link{expectedLink}, nil)
+	repoWithoutLinks.On("AllUserLinks", mock.Anything).Return([]Link{}, nil)
+
+	type testCase struct {
+		name         string
+		repo         scrapservice.UserRepo
+		userID       int64
+		httpStatus   int
+		expectedBody *listLinksResponse
+	}
+
+	tests := []testCase{
+		{
+			name:         "ошибка при попытке получить все ссылки пользователя",
+			repo:         repoWithErr,
+			userID:       1,
+			httpStatus:   http.StatusInternalServerError,
+			expectedBody: nil,
+		},
+		{
+			name:         "получение ссылок пользователем",
+			repo:         repoWithLinks,
+			userID:       1,
+			httpStatus:   http.StatusOK,
+			expectedBody: userLinks,
+		},
+		{
+			name:         "проверка краевого случая, когда ссылок не оказалось",
+			repo:         repoWithoutLinks,
+			userID:       1,
+			httpStatus:   http.StatusOK,
+			expectedBody: &listLinksResponse{Links: make([]LinkResponse, 0)},
+		},
+	}
+
+	for _, test := range tests {
+		w := httptest.NewRecorder()
+
+		linkHandler := scrapperhandlers.NewLinkHandler(test.repo, logger, stackClient, gitClient)
+		linkHandler.GetMethodHandler(w, test.userID)
+
+		assert.Equal(t, test.httpStatus, w.Code)
+
+		if test.expectedBody != nil {
+			listLinksResponse := &listLinksResponse{}
+
+			err := json.NewDecoder(w.Body).Decode(listLinksResponse)
+
+			assert.NoError(t, err, "ошибка при декодинге тела ответа")
+			assert.Equal(t, test.expectedBody, listLinksResponse)
+		} else {
+			assert.Empty(t, w.Body)
+		}
+	}
+}
+
+func TestLinkHandler_PostMethodHandler(t *testing.T) {
+	repoWithErrUserTrackLink := mocks.NewUserRepo(t)
+	repoUserAlwaysTrackLink := mocks.NewUserRepo(t)
+	repoUserAlwaysNotTrackLinkWithErr := mocks.NewUserRepo(t)
+	repoUserAlwaysNotTrackLink := mocks.NewUserRepo(t)
+
+	repoWithErrUserTrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
+		Return(false, errRepo)
+
+	repoUserAlwaysTrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
+		Return(true, nil)
+
+	repoUserAlwaysNotTrackLinkWithErr.On("UserTrackLink", mock.Anything, mock.Anything).
+		Return(false, nil)
+
+	repoUserAlwaysNotTrackLinkWithErr.On("TrackLink", mock.Anything, mock.Anything, mock.Anything).
+		Return(errRepo)
+
+	repoUserAlwaysNotTrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
+		Return(false, nil)
+
+	repoUserAlwaysNotTrackLink.On("TrackLink", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+
+	stackClient := mocks.NewSiteClient(t)
+
+	stackClient.On("CanTrack", wrongLink).Return(false)
+	stackClient.On("CanTrack", goodLink).Return(true)
+
+	type testCase struct {
+		name           string
+		userRepo       scrapservice.UserRepo
+		userID         int64
+		httpStatus     int
+		reqData        []byte
+		responseAPIErr bool
+		responseLink   bool
+		expectedBody   any
+	}
+
+	tests := []testCase{
+		{
+			name:           "Передаем не правильные данные в запросе",
+			userRepo:       repoWithErrUserTrackLink,
+			userID:         1,
+			httpStatus:     http.StatusBadRequest,
+			reqData:        []byte(wrongStr),
+			responseAPIErr: true,
+			responseLink:   false,
+			expectedBody:   dto.ApiErrBadJSON,
+		},
+		{
+			name:           "пытаемся добавить не поддерживаемую ссылку",
+			userRepo:       repoWithErrUserTrackLink,
+			userID:         1,
+			httpStatus:     http.StatusBadRequest,
+			reqData:        addWrongLink,
+			responseAPIErr: true,
+			responseLink:   false,
+			expectedBody:   dto.ApiErrBadLink,
+		},
+		{
+			name:           "ошибка при проверке отслеживания ссылки",
+			userRepo:       repoWithErrUserTrackLink,
+			userID:         1,
+			httpStatus:     http.StatusInternalServerError,
+			reqData:        addGoodLink,
+			responseAPIErr: false,
+			responseLink:   false,
+			expectedBody:   nil,
+		},
+		{
+			name:           "пользователь уже отслеживает ссылку",
+			userRepo:       repoUserAlwaysTrackLink,
+			userID:         1,
+			httpStatus:     http.StatusBadRequest,
+			reqData:        addGoodLink,
+			responseAPIErr: true,
+			responseLink:   false,
+			expectedBody:   dto.ApiErrDuplicateLink,
+		},
+		{
+			name:           "ошибка при добавлении новой ссылки в БД",
+			userRepo:       repoUserAlwaysNotTrackLinkWithErr,
+			userID:         1,
+			httpStatus:     http.StatusInternalServerError,
+			reqData:        addGoodLink,
+			responseAPIErr: false,
+			responseLink:   false,
+			expectedBody:   nil,
+		},
+		{
+			name:           "успешное добавлении новой ссылки в БД",
+			userRepo:       repoUserAlwaysNotTrackLink,
+			userID:         1,
+			httpStatus:     http.StatusOK,
+			reqData:        addGoodLink,
+			responseAPIErr: false,
+			responseLink:   true,
+			expectedBody:   addGoodLinkResponse,
+		},
+	}
+
+	for _, test := range tests {
+		w := httptest.NewRecorder()
+
+		linkHandler := scrapperhandlers.NewLinkHandler(test.userRepo, logger, stackClient)
+		linkHandler.PostMethodHandler(w, test.userID, test.reqData)
+
+		assert.Equal(t, test.httpStatus, w.Code)
+
+		switch {
+		case test.responseAPIErr:
+			errResponse := &dto.APIErrResponse{}
+
+			err := json.NewDecoder(w.Body).Decode(errResponse)
+
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedBody, errResponse)
+		case test.responseLink:
+			linksResponse := &LinkResponse{}
+
+			err := json.NewDecoder(w.Body).Decode(linksResponse)
+
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedBody, linksResponse)
+		default:
+			assert.Empty(t, w.Body)
+		}
+	}
+}
+
+func TestLinkHandler_DeleteMethodHandler(t *testing.T) {
+	repoWithErrUserTrackLink := mocks.NewUserRepo(t)
+	repoUserAlwaysNotTrackLink := mocks.NewUserRepo(t)
+	repoUntrackLinkWithErr := mocks.NewUserRepo(t)
+	repoUntrackLink := mocks.NewUserRepo(t)
+
+	repoWithErrUserTrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
+		Return(false, errRepo)
+
+	repoUserAlwaysNotTrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
+		Return(false, nil)
+
+	repoUntrackLinkWithErr.On("UserTrackLink", mock.Anything, mock.Anything).
+		Return(true, nil)
+
+	repoUntrackLinkWithErr.On("UntrackLink", mock.Anything, mock.Anything).
+		Return(errRepo)
+
+	repoUntrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
+		Return(true, nil)
+
+	repoUntrackLink.On("UntrackLink", mock.Anything, mock.Anything).
+		Return(nil)
+
+	stackClient := mocks.NewSiteClient(t)
+
+	type testCase struct {
+		name           string
+		userRepo       scrapservice.UserRepo
+		userID         int64
+		httpStatus     int
+		reqData        []byte
+		responseAPIErr bool
+		responseLink   bool
+		expectedBody   any
+	}
+
+	tests := []testCase{
+		{
+			name:           "Передаем не правильные данные в запросе",
+			userRepo:       repoWithErrUserTrackLink,
+			userID:         1,
+			httpStatus:     http.StatusBadRequest,
+			reqData:        []byte(wrongStr),
+			responseAPIErr: true,
+			responseLink:   false,
+			expectedBody:   dto.ApiErrBadJSON,
+		},
+		{
+			name:           "ошибка при проверке отслеживания ссылки",
+			userRepo:       repoWithErrUserTrackLink,
+			userID:         1,
+			httpStatus:     http.StatusInternalServerError,
+			reqData:        removeGoodLink,
+			responseAPIErr: false,
+			responseLink:   false,
+			expectedBody:   nil,
+		},
+		{
+			name:           "пользователь не отслеживает ссылку",
+			userRepo:       repoUserAlwaysNotTrackLink,
+			userID:         1,
+			httpStatus:     http.StatusNotFound,
+			reqData:        removeGoodLink,
+			responseAPIErr: true,
+			responseLink:   false,
+			expectedBody:   dto.ApiErrNotTrackLink,
+		},
+		{
+			name:           "ошибка при удалении ссылки пользователя",
+			userRepo:       repoUntrackLinkWithErr,
+			userID:         1,
+			httpStatus:     http.StatusInternalServerError,
+			reqData:        removeGoodLink,
+			responseAPIErr: false,
+			responseLink:   false,
+			expectedBody:   nil,
+		},
+		{
+			name:           "успешное удаление ссылки",
+			userRepo:       repoUntrackLink,
+			userID:         1,
+			httpStatus:     http.StatusOK,
+			reqData:        removeGoodLink,
+			responseAPIErr: false,
+			responseLink:   true,
+			expectedBody:   removeGoodLinkResponse,
+		},
+	}
+
+	for _, test := range tests {
+		w := httptest.NewRecorder()
+
+		linkHandler := scrapperhandlers.NewLinkHandler(test.userRepo, logger, stackClient)
+		linkHandler.DeleteMethodHandler(w, test.userID, test.reqData)
+
+		assert.Equal(t, test.httpStatus, w.Code)
+
+		switch {
+		case test.responseAPIErr:
+			errResponse := &dto.APIErrResponse{}
+
+			err := json.NewDecoder(w.Body).Decode(errResponse)
+
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedBody, errResponse)
+		case test.responseLink:
+			linksResponse := &LinkResponse{}
+
+			err := json.NewDecoder(w.Body).Decode(linksResponse)
+
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedBody, linksResponse)
+
+		default:
+			assert.Empty(t, w.Body)
+		}
+	}
+}
+
+func TestLinkHandler_HandleLinksChanges(t *testing.T) {
+	userRepoWithErr := mocks.NewUserRepo(t)
+	userRepoWithoutUsers := mocks.NewUserRepo(t)
+	userRepoWithUsers := mocks.NewUserRepo(t)
+
+	userRepoWithErr.On("UserExist", mock.Anything).Return(false, errRepo)
+	userRepoWithoutUsers.On("UserExist", mock.Anything).Return(false, nil)
+	userRepoWithUsers.On("UserExist", mock.Anything).Return(true, nil)
+	userRepoWithUsers.On("AllUserLinks", mock.Anything).Return(nil, errRepo)
+
+	stackClient := mocks.NewSiteClient(t)
+
+	type testCase struct {
+		name         string
+		userRepo     scrapservice.UserRepo
+		req          *http.Request
+		httpStatus   int
+		responseBody any
+	}
+
+	tests := []testCase{
+		{
+			name:     "id пользователя не является числом",
+			userRepo: userRepoWithErr,
+			req: &http.Request{
+				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
+				Header: map[string][]string{"Tg-Chat-Id": {idNotInt}},
+			},
+			httpStatus:   http.StatusBadRequest,
+			responseBody: dto.ApiErrIDNotNum,
+		},
+		{
+			name:     "id пользователя отрицательное число",
+			userRepo: userRepoWithErr,
+			req: &http.Request{
+				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
+				Header: map[string][]string{"Tg-Chat-Id": {negativeID}},
+			},
+			httpStatus:   http.StatusBadRequest,
+			responseBody: dto.ApiErrNegativeID,
+		},
+		{
+			name:     "id пользователя отрицательное число",
+			userRepo: userRepoWithErr,
+			req: &http.Request{
+				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
+				Header: map[string][]string{"Tg-Chat-Id": {goodID}},
+			},
+			httpStatus:   http.StatusInternalServerError,
+			responseBody: nil,
+		},
+		{
+			name:     "id пользователя не зарегистрирован",
+			userRepo: userRepoWithoutUsers,
+			req: &http.Request{
+				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
+				Header: map[string][]string{"Tg-Chat-Id": {goodID}},
+			},
+			httpStatus:   http.StatusBadRequest,
+			responseBody: dto.ApiErrUserNotRegistered,
+		},
+		{
+			name:     "проверка не поддерживаемого метода",
+			userRepo: userRepoWithUsers,
+			req: &http.Request{
+				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
+				Header: map[string][]string{"Tg-Chat-Id": {goodID}},
+				Method: http.MethodPut,
+			},
+			httpStatus:   http.StatusMethodNotAllowed,
+			responseBody: nil,
+		},
+		{
+			name:     "проверка вызова get обработчика",
+			userRepo: userRepoWithUsers,
+			req: &http.Request{
+				Body:   io.NopCloser(bytes.NewBuffer([]byte{})),
+				Header: map[string][]string{"Tg-Chat-Id": {goodID}},
+				Method: http.MethodGet,
+			},
+			httpStatus:   http.StatusInternalServerError,
+			responseBody: nil,
+		},
+		{
+			name:     "проверка вызова post обработчика",
+			userRepo: userRepoWithUsers,
+			req: &http.Request{
+				Body:   io.NopCloser(bytes.NewBuffer([]byte(wrongStr))),
+				Header: map[string][]string{"Tg-Chat-Id": {goodID}},
+				Method: http.MethodPost,
+			},
+			httpStatus:   http.StatusBadRequest,
+			responseBody: dto.ApiErrBadJSON,
+		},
+		{
+			name:     "проверка вызова delete обработчика",
+			userRepo: userRepoWithUsers,
+			req: &http.Request{
+				Body:   io.NopCloser(bytes.NewBuffer([]byte(wrongStr))),
+				Header: map[string][]string{"Tg-Chat-Id": {goodID}},
+				Method: http.MethodPost,
+			},
+			httpStatus:   http.StatusBadRequest,
+			responseBody: dto.ApiErrBadJSON,
+		},
+	}
+
+	for _, test := range tests {
+		w := httptest.NewRecorder()
+
+		linkHandler := scrapperhandlers.NewLinkHandler(test.userRepo, logger, stackClient)
+
+		linkHandler.HandleLinksChanges(w, test.req)
+
+		assert.Equal(t, test.httpStatus, w.Code)
+
+		if test.responseBody != nil {
+			apiErr := &dto.APIErrResponse{}
+
+			err := json.NewDecoder(w.Body).Decode(apiErr)
+
+			assert.NoError(t, err)
+			assert.Equal(t, test.responseBody, apiErr)
+		} else {
+			assert.Empty(t, w.Body)
+		}
+	}
+}
