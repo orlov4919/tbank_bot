@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	//"github.com/golang-migrate/migrate/v4"
@@ -41,37 +42,7 @@ func NewStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) *UserStorage {
 	return &UserStorage{db: pgxPool, batchSize: dbConfig.BatchSize}
 }
 
-func (u *UserStorage) AllLinks() ([]LinkInfo, error) {
-	var linkID LinkID
-	var url Link
-	var date time.Time
-
-	sqlCmd := "SELECT link_id,link_url,last_update_check FROM links"
-	rows, err := u.db.Query(context.Background(), sqlCmd)
-
-	if err != nil {
-		return nil, fmt.Errorf("при получении всех ссылок произошла ошибка: %w", err)
-	}
-
-	defer rows.Close()
-
-	links := make([]LinkInfo, 0, 1000)
-
-	for rows.Next() {
-		if err = rows.Scan(&linkID, &url, &date); err != nil {
-			return nil, fmt.Errorf("ошибка при получении всех ссылок: %w", err)
-		}
-		links = append(links, LinkInfo{ID: linkID, URL: url, LastUpdate: date})
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("ошибка при получении всех ссылок: %w", err)
-	}
-
-	return links, nil
-}
-
-func (u *UserStorage) TrackLink(userID User, link Link, addTime time.Time) error {
+func (u *UserStorage) TrackLink(userID User, link Link, addTime time.Time) (err error) {
 	var link_id int64
 
 	tx, err := u.db.Begin(context.Background())
@@ -80,19 +51,24 @@ func (u *UserStorage) TrackLink(userID User, link Link, addTime time.Time) error
 		return fmt.Errorf("при попытке создать соединение для транзакции произошла ошибка: %w", err)
 	}
 
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(context.Background()); rollbackErr != nil {
+				err = errors.Join(rollbackErr, err)
+			}
+		}
+	}()
+
 	if err := tx.QueryRow(context.Background(), "WITH id AS (INSERT INTO links(link_url,last_update_check) values ($1,$2) ON CONFLICT (link_url) DO NOTHING RETURNING link_id) SELECT id.link_id FROM id UNION ALL SELECT link_id FROM links WHERE link_url = ($1);", link, addTime).
 		Scan(&link_id); err != nil {
-		tx.Rollback(context.Background())
 		return fmt.Errorf("ошибка при добавлении в таблицу links: %w", err)
 	}
 
 	if _, err := tx.Exec(context.Background(), "INSERT INTO users(user_id) values ($1) ON CONFLICT (user_id) DO NOTHING", userID); err != nil {
-		tx.Rollback(context.Background())
 		return fmt.Errorf("ошибка при добавлении в таблицу users")
 	}
 
-	if _, err := tx.Exec(context.Background(), "INSERT INTO userlinks(user_id,link_id) values ($1,$2) ON CONFLICT (user_id,link_id) DO NOTHING", userID, link_id); err != nil {
-		tx.Rollback(context.Background())
+	if _, err := tx.Exec(context.Background(), "INSERT INTO userlinks(user_id,link_id) values ($1,$2)", userID, link_id); err != nil {
 		return fmt.Errorf("ошибка при добавлении в таблицу userlinks")
 	}
 
@@ -166,44 +142,33 @@ func (u *UserStorage) AllUserLinks(userID User) ([]Link, error) {
 func (u *UserStorage) UserTrackLink(userID User, URL Link) (bool, error) { // переписать на Query Row
 	var link Link
 
-	rows, err := u.db.Query(context.Background(), "SELECT link_url FROM links JOIN userlinks ON links.link_id = userlinks.link_id WHERE userlinks.user_id = ($1) AND links.link_url = ($2)", userID, URL)
+	err := u.db.QueryRow(context.Background(),
+		`SELECT link_url FROM links JOIN userlinks ON links.link_id = userlinks.link_id
+             WHERE userlinks.user_id = ($1) AND links.link_url = ($2)`, userID, URL).Scan(&link)
+
+	if err == pgx.ErrNoRows {
+		return false, nil
+	}
 
 	if err != nil {
-		return false, fmt.Errorf("ошибка при выполнении запроса на получение всех ссылок пользователя: %w", err)
+		return false, fmt.Errorf("ошибка при проверки ссылки пользователя: %w", err)
 	}
 
-	for rows.Next() {
-		if err = rows.Scan(&link); err != nil {
-			return false, fmt.Errorf("ошибка при чтении строки: %w", err)
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return false, fmt.Errorf("ошибка при получении всех ссылок пользователя: %w", err)
-	}
-
-	return link != "", nil
+	return true, nil
 }
 
 func (u *UserStorage) UserExist(UserID User) (bool, error) {
 	var user User
 
-	rows, err := u.db.Query(context.Background(), "SELECT user_id FROM users WHERE user_id = ($1)", UserID)
+	err := u.db.QueryRow(context.Background(),
+		"SELECT user_id FROM users WHERE user_id = ($1)", UserID).Scan(&user)
+
+	if err == pgx.ErrNoRows {
+		return false, nil
+	}
 
 	if err != nil {
-		return false, fmt.Errorf("ошибка при создании соединения:%w", err)
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		if err = rows.Scan(&user); err != nil {
-			return false, fmt.Errorf("ошибка при чтении строки: %w", err)
-		}
-	}
-
-	if err = rows.Err(); err != nil {
-		return false, fmt.Errorf("ошибка при получении всех ссылок пользователя: %w", err)
+		return false, fmt.Errorf("ошибка при проверки пользователя в БД: %w", err)
 	}
 
 	return user == UserID, nil
@@ -235,14 +200,12 @@ func (u *UserStorage) DeleteUser(user User) (err error) {
 		}
 	}()
 
-	fmt.Println(user)
-
 	if _, err = tx.Exec(context.Background(), "DELETE FROM userlinks WHERE user_id = ($1);", user); err != nil {
-		return err
+		return fmt.Errorf("ошибка при удалении пользователя из таблицы userlinks: %w", err)
 	}
 
 	if _, err = tx.Exec(context.Background(), "DELETE FROM users WHERE user_id = ($1);", user); err != nil {
-		return fmt.Errorf("ошибка при удалении пользователя: %w", err)
+		return fmt.Errorf("ошибка при удалении пользователя из таблицы users: %w", err)
 	}
 
 	if err = tx.Commit(context.Background()); err != nil {
@@ -252,12 +215,15 @@ func (u *UserStorage) DeleteUser(user User) (err error) {
 	return nil
 }
 
-// доработать этот метод, если не один пользователь не отслеживает ссылку
-
 func (u *UserStorage) UntrackLink(user User, link Link) error {
 	if _, err := u.db.Exec(context.Background(), "DELETE FROM userlinks USING links WHERE userlinks.link_id = links.link_id AND links.link_url = ($1) AND userlinks.user_id = ($2)", link, user); err != nil {
 		return fmt.Errorf("ошибка во время удаления ссылки пользователя: %w", err)
 	}
+
+	return nil
+}
+
+func (u *UserStorage) DeleteUntrackedLinks() error {
 
 	return nil
 }
@@ -274,8 +240,6 @@ func (l *linkPaginator) LinksBatch() ([]LinkInfo, error) {
 	var lastCheck time.Time
 
 	var linkInfo LinkInfo
-
-	// впихнуть where по тому кто не обновлялся более 5 минут к примеру
 
 	rows, err := l.db.Query(context.Background(), "SELECT link_id, link_url, last_update_check FROM links WHERE link_id > ($1) AND CURRENT_TIMESTAMP - last_update_check > '5 minutes' ORDER BY link_id ASC LIMIT ($2);", l.lastLinkID, l.limit)
 
