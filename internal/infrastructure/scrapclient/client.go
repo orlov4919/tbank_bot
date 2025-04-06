@@ -1,4 +1,4 @@
-package scrapperclient
+package scrapclient
 
 import (
 	"bytes"
@@ -22,6 +22,7 @@ type HTTPClient interface {
 }
 
 type ScrapperClient struct {
+	scheme         string
 	host           string
 	baseLinkPath   string
 	baseTgChatPath string
@@ -30,6 +31,7 @@ type ScrapperClient struct {
 
 func New(client HTTPClient, host, port string) *ScrapperClient {
 	return &ScrapperClient{
+		scheme:         "http",
 		host:           host + port,
 		baseLinkPath:   "/links",
 		baseTgChatPath: "/tg-chat",
@@ -39,7 +41,7 @@ func New(client HTTPClient, host, port string) *ScrapperClient {
 
 func (s *ScrapperClient) RegUser(id ID) error {
 	url := &url.URL{
-		Scheme: "http",
+		Scheme: s.scheme,
 		Host:   s.host,
 		Path:   path.Join(s.baseTgChatPath, strconv.FormatInt(id, 10)),
 	}
@@ -66,7 +68,7 @@ func (s *ScrapperClient) RegUser(id ID) error {
 
 func (s *ScrapperClient) UserLinks(id ID) ([]Link, error) {
 	url := &url.URL{
-		Scheme: "http",
+		Scheme: s.scheme,
 		Host:   s.host,
 		Path:   s.baseLinkPath,
 	}

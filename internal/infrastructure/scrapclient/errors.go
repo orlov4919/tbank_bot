@@ -1,4 +1,4 @@
-package scrapperclient
+package scrapclient
 
 import "fmt"
 

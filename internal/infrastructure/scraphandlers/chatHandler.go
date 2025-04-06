@@ -1,6 +1,7 @@
-package scrapperhandlers
+package scraphandlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"linkTraccer/internal/domain/dto"
@@ -17,14 +18,16 @@ const (
 )
 
 type ChatHandler struct {
-	userRepo UserRepo
-	log      *slog.Logger
+	userRepo   UserRepo
+	transactor Transactor
+	log        *slog.Logger
 }
 
-func NewChatHandler(repo UserRepo, log *slog.Logger) *ChatHandler {
+func NewChatHandler(repo UserRepo, transactor Transactor, log *slog.Logger) *ChatHandler {
 	return &ChatHandler{
-		userRepo: repo,
-		log:      log,
+		userRepo:   repo,
+		transactor: transactor,
+		log:        log,
 	}
 }
 
@@ -95,7 +98,15 @@ func (c *ChatHandler) DeleteHandler(w http.ResponseWriter, userID int64, userExi
 		return
 	}
 
-	if err := c.userRepo.DeleteUser(userID); err != nil {
+	err := c.transactor.WithTransaction(context.Background(), func(ctx context.Context) error {
+		if err := c.userRepo.DeleteUser(ctx, userID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
 		c.log.Info("ошибка при регистрации пользователя", "err", err.Error())

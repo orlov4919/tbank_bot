@@ -1,4 +1,4 @@
-package cleansql_test
+package buildersql_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
-	"linkTraccer/internal/infrastructure/database/sql/cleansql"
+	"linkTraccer/internal/infrastructure/database/sql/buildersql"
 	"testing"
 	"time"
 
@@ -129,7 +129,7 @@ func ConfigureDatabase(t *testing.T) *pgxpool.Pool {
 
 func TestUserStorage_TrackLink(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestCase struct {
 		name        string
@@ -211,7 +211,7 @@ func TestUserStorage_TrackLink(t *testing.T) {
 
 func TestUserStorage_ChangeLastCheckTime(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestData struct {
 		userID int64
@@ -285,7 +285,7 @@ func TestUserStorage_ChangeLastCheckTime(t *testing.T) {
 
 func TestUserStorage_UsersWhoTrackLink(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestData struct {
 		userID int64
@@ -347,7 +347,7 @@ func TestUserStorage_UsersWhoTrackLink(t *testing.T) {
 
 func TestUserStorage_AllUserLinks(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestData struct {
 		userID int64
@@ -401,7 +401,7 @@ func TestUserStorage_AllUserLinks(t *testing.T) {
 
 func TestUserStorage_UserTrackLink(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestData struct {
 		userID int64
@@ -459,7 +459,7 @@ func TestUserStorage_UserTrackLink(t *testing.T) {
 
 func TestUserStorage_UserExist(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestData struct {
 		userID int64
@@ -513,7 +513,7 @@ func TestUserStorage_UserExist(t *testing.T) {
 
 func TestUserStorage_RegUser(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestCase struct {
 		userID int64
@@ -542,7 +542,7 @@ func TestUserStorage_RegUser(t *testing.T) {
 
 func TestUserStorage_DeleteUser(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestData struct {
 		userID int64
@@ -610,7 +610,7 @@ func TestUserStorage_DeleteUser(t *testing.T) {
 
 func TestUserStorage_UntrackLink(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestData struct {
 		userID int64
@@ -675,7 +675,7 @@ func TestUserStorage_UntrackLink(t *testing.T) {
 
 func TestUserStorage_DeleteUntrackedLinks(t *testing.T) {
 	pgxPool := ConfigureDatabase(t)
-	userRepo := cleansql.NewStore(&sql.DBConfig{}, pgxPool)
+	userRepo := buildersql.NewStore(&sql.DBConfig{}, pgxPool)
 
 	type TestData struct {
 		userID int64
@@ -744,7 +744,7 @@ func TestUserStorage_DeleteUntrackedLinks(t *testing.T) {
 
 		err = pgxPool.QueryRow(context.Background(),
 			`SELECT link_url FROM links WHERE link_url = ($1)`, test.deletedLink).Scan(&link)
-		
+
 		if test.inLinks {
 			assert.Equal(t, test.deletedLink, link)
 			assert.NoError(t, err)

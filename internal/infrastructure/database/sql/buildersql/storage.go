@@ -3,13 +3,16 @@ package buildersql
 import (
 	"context"
 	"fmt"
-	"github.com/doug-martin/goqu/v9"
-	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
+	"linkTraccer/internal/infrastructure/database/sql/transactor"
 	"time"
+
+	"github.com/doug-martin/goqu/v9"
+	// диалект для постгреса.
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -21,61 +24,26 @@ type Link = scrapper.Link
 type User = scrapper.User
 type LinkInfo = scrapper.LinkInfo
 type LinkID = scrapper.LinkID
-type Tag = scrapper.Tag
 
 type UserStorage struct {
-	batchSize int
+	batchSize uint
 	db        *pgxpool.Pool
 }
 
 type linkPaginator struct {
 	db         *pgxpool.Pool
 	lastLinkID int64
-	limit      int
+	limit      uint
 }
 
 func NewStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) *UserStorage {
 	return &UserStorage{db: pgxPool, batchSize: dbConfig.BatchSize}
 }
 
-func (u *UserStorage) AllLinks() ([]LinkInfo, error) {
-	var linkID LinkID
-	var url Link
-	var date time.Time
+func (u *UserStorage) TrackLink(ctx context.Context, userID User, link Link, addTime time.Time) error {
+	var linkID int64
 
-	sqlCmd, _, _ := goqu.From("links").Select("link_id,link_url,last_update_check").ToSQL()
-	rows, err := u.db.Query(context.Background(), sqlCmd)
-
-	if err != nil {
-		return nil, fmt.Errorf("при получении всех ссылок произошла ошибка: %w", err)
-	}
-
-	defer rows.Close()
-
-	links := make([]LinkInfo, 0, 1000)
-
-	for rows.Next() {
-		if err = rows.Scan(&linkID, &url, &date); err != nil {
-			return nil, fmt.Errorf("ошибка при получении всех ссылок: %w", err)
-		}
-		links = append(links, LinkInfo{ID: linkID, URL: url, LastUpdate: date})
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("ошибка при получении всех ссылок: %w", err)
-	}
-
-	return links, nil
-}
-
-func (u *UserStorage) TrackLink(userID User, link Link, addTime time.Time) error {
-	var link_id int64
-
-	tx, err := u.db.Begin(context.Background())
-
-	if err != nil {
-		return fmt.Errorf("при попытке создать соединение для транзакции произошла ошибка: %w", err)
-	}
+	conn := transactor.GetQuerier(ctx, u.db)
 
 	sqlCmd, _, _ := goqu.Dialect("postgres").
 		From("id").
@@ -87,9 +55,8 @@ func (u *UserStorage) TrackLink(userID User, link Link, addTime time.Time) error
 		UnionAll(goqu.From("links").Select("link_id").Where(goqu.Ex{"link_url": goqu.L("$1")})).
 		ToSQL()
 
-	if err := tx.QueryRow(context.Background(), sqlCmd, link, addTime).
-		Scan(&link_id); err != nil {
-		tx.Rollback(context.Background())
+	if err := conn.QueryRow(context.Background(), sqlCmd, link, addTime).
+		Scan(&linkID); err != nil {
 		return fmt.Errorf("ошибка при добавлении в таблицу links: %w", err)
 	}
 
@@ -98,23 +65,17 @@ func (u *UserStorage) TrackLink(userID User, link Link, addTime time.Time) error
 		Vals(goqu.Vals{goqu.L("$1")}).
 		OnConflict(goqu.DoNothing()).ToSQL()
 
-	if _, err := tx.Exec(context.Background(), sqlCmd, userID); err != nil {
-		tx.Rollback(context.Background())
+	if _, err := conn.Exec(context.Background(), sqlCmd, userID); err != nil {
 		return fmt.Errorf("ошибка при добавлении в таблицу users")
 	}
 
 	sqlCmd, _, _ = goqu.Insert("userlinks").
 		Cols("user_id", "link_id").
 		Vals(goqu.Vals{goqu.L("$1"), goqu.L("$2")}).
-		OnConflict(goqu.DoNothing()).ToSQL()
+		ToSQL()
 
-	if _, err := tx.Exec(context.Background(), sqlCmd, userID, link_id); err != nil {
-		tx.Rollback(context.Background())
+	if _, err := conn.Exec(context.Background(), sqlCmd, userID, linkID); err != nil {
 		return fmt.Errorf("ошибка при добавлении в таблицу userlinks")
-	}
-
-	if err = tx.Commit(context.Background()); err != nil {
-		return fmt.Errorf("ошибка при создании коммита транзакции: %w", err)
 	}
 
 	return nil
@@ -196,7 +157,7 @@ func (u *UserStorage) AllUserLinks(userID User) ([]Link, error) {
 	return links, nil
 }
 
-func (u *UserStorage) UserTrackLink(userID User, URL Link) (bool, error) { // переписать на Query Row
+func (u *UserStorage) UserTrackLink(userID User, url Link) (bool, error) { // переписать на Query Row
 	var link Link
 
 	sqlCmd, _, _ := goqu.From("links").
@@ -205,7 +166,7 @@ func (u *UserStorage) UserTrackLink(userID User, URL Link) (bool, error) { // п
 		Where(goqu.Ex{"userlinks.user_id": goqu.L("$1")}, goqu.Ex{"links.link_url": goqu.L("$2")}).
 		ToSQL()
 
-	rows, err := u.db.Query(context.Background(), sqlCmd, userID, URL)
+	rows, err := u.db.Query(context.Background(), sqlCmd, userID, url)
 
 	if err != nil {
 		return false, fmt.Errorf("ошибка при выполнении запроса на получение всех ссылок пользователя: %w", err)
@@ -224,7 +185,7 @@ func (u *UserStorage) UserTrackLink(userID User, URL Link) (bool, error) { // п
 	return link != "", nil
 }
 
-func (u *UserStorage) UserExist(UserID User) (bool, error) {
+func (u *UserStorage) UserExist(userID User) (bool, error) {
 	var user User
 
 	sqlCmd, _, _ := goqu.From("users").
@@ -232,7 +193,7 @@ func (u *UserStorage) UserExist(UserID User) (bool, error) {
 		Where(goqu.Ex{"user_id": goqu.L("$1")}).
 		ToSQL()
 
-	rows, err := u.db.Query(context.Background(), sqlCmd, UserID)
+	rows, err := u.db.Query(context.Background(), sqlCmd, userID)
 
 	if err != nil {
 		return false, fmt.Errorf("ошибка при создании соединения:%w", err)
@@ -250,41 +211,62 @@ func (u *UserStorage) UserExist(UserID User) (bool, error) {
 		return false, fmt.Errorf("ошибка при получении всех ссылок пользователя: %w", err)
 	}
 
-	return user == UserID, nil
+	return user == userID, nil
 }
 
-func (u *UserStorage) RegUser(UserID User) error {
+func (u *UserStorage) RegUser(userID User) error {
 	sqlCmd, _, _ := goqu.Insert("users").
 		Cols("user_id").
 		Vals(goqu.Vals{goqu.L("$1")}).
 		OnConflict(goqu.DoNothing()).
 		ToSQL()
 
-	if _, err := u.db.Exec(context.Background(), sqlCmd, UserID); err != nil {
+	if _, err := u.db.Exec(context.Background(), sqlCmd, userID); err != nil {
 		return fmt.Errorf("ошибка при добавлении нового пользователя: %w", err)
 	}
 
 	return nil
 }
 
-// проработать этот метод на все ссылки которые отслеживал только он
+func (u *UserStorage) DeleteUser(ctx context.Context, user User) error {
+	conn := transactor.GetQuerier(ctx, u.db)
 
-func (u *UserStorage) DeleteUser(user User) error {
-	sqlCmd, _, _ := goqu.Delete("users").Where(goqu.Ex{"user_id": goqu.L("$1")}).ToSQL()
+	sqlCmd, _, _ := goqu.Delete("userlinks").Where(goqu.Ex{"user_id": goqu.L("$1")}).ToSQL()
 
-	if _, err := u.db.Exec(context.Background(), sqlCmd, user); err != nil {
+	if _, err := conn.Exec(context.Background(), sqlCmd, user); err != nil {
+		return fmt.Errorf("ошибка при удалении пользователя: %w", err)
+	}
+
+	sqlCmd, _, _ = goqu.Delete("users").Where(goqu.Ex{"user_id": goqu.L("$1")}).ToSQL()
+
+	if _, err := conn.Exec(context.Background(), sqlCmd, user); err != nil {
 		return fmt.Errorf("ошибка при удалении пользователя: %w", err)
 	}
 
 	return nil
 }
 
-// доработать этот метод, если не один пользователь не отслеживает ссылку
+// using нету в библиотеке, по этому оставил запрос на чистом sql
 
 func (u *UserStorage) UntrackLink(user User, link Link) error {
+	_, err := u.db.Exec(context.Background(),
+		`DELETE FROM userlinks USING links 
+       WHERE userlinks.link_id = links.link_id AND links.link_url = ($1) AND userlinks.user_id = ($2)`,
+		link, user)
 
-	if _, err := u.db.Exec(context.Background(), "DELETE FROM userlinks USING links WHERE userlinks.link_id = links.link_id AND links.link_url = ($1) AND userlinks.user_id = ($2)", link, user); err != nil {
+	if err != nil {
 		return fmt.Errorf("ошибка во время удаления ссылки пользователя: %w", err)
+	}
+
+	return nil
+}
+
+func (u *UserStorage) DeleteUntrackedLinks() error {
+	_, err := u.db.Exec(context.Background(), `DELETE FROM links 
+       									 WHERE link_id NOT IN (SELECT  link_id FROM userlinks)`)
+
+	if err != nil {
+		return fmt.Errorf("ошибка при удалении не отслеживаемых ссылок: %w", err)
 	}
 
 	return nil
@@ -303,13 +285,11 @@ func (l *linkPaginator) LinksBatch() ([]LinkInfo, error) {
 
 	var linkInfo LinkInfo
 
-	// впихнуть where по тому кто не обновлялся более 5 минут к примеру
-
 	sqlCmd, _, _ := goqu.From("links").
 		Select("link_id", "link_url", "last_update_check").
 		Where(goqu.C("link_id").Gt(goqu.L("$1")),
 			goqu.C("last_update_check").Lt(goqu.L("CURRENT_TIMESTAMP - INTERVAL '5 minutes'"))).
-		Order(goqu.I("link_id").Asc()).Limit(uint(l.limit)).
+		Order(goqu.I("link_id").Asc()).Limit(l.limit).
 		ToSQL()
 
 	rows, err := l.db.Query(context.Background(), sqlCmd, l.lastLinkID)

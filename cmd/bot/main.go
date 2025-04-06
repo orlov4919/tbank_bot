@@ -6,7 +6,7 @@ import (
 	"linkTraccer/internal/infrastructure/botconfig"
 	"linkTraccer/internal/infrastructure/bothandler"
 	"linkTraccer/internal/infrastructure/database/file/contextstorage"
-	"linkTraccer/internal/infrastructure/scrapperclient"
+	"linkTraccer/internal/infrastructure/scrapclient"
 	"linkTraccer/internal/infrastructure/telegram"
 	"log/slog"
 	"net/http"
@@ -34,7 +34,7 @@ func main() {
 
 	tgClient := telegram.NewClient(&http.Client{Timeout: time.Minute}, config.Token, telegramBotAPI)
 	ctxStore := contextstorage.New()
-	scrapClient := scrapperclient.New(&http.Client{Timeout: time.Minute}, config.ScrapperHost, config.ScrapperPort)
+	scrapClient := scrapclient.New(&http.Client{Timeout: time.Minute}, config.ScrapperHost, config.ScrapperPort)
 	tgBot := botservice.New(tgClient, scrapClient, ctxStore, logger, 5)
 
 	tgBot.Init()

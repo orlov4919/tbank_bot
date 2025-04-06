@@ -13,8 +13,9 @@ import (
 	"linkTraccer/internal/infrastructure/database/sql"
 	"linkTraccer/internal/infrastructure/database/sql/buildersql"
 	"linkTraccer/internal/infrastructure/database/sql/cleansql"
-	"linkTraccer/internal/infrastructure/scrapperconfig"
-	"linkTraccer/internal/infrastructure/scrapperhandlers"
+	"linkTraccer/internal/infrastructure/database/sql/transactor"
+	"linkTraccer/internal/infrastructure/scrapconfig"
+	"linkTraccer/internal/infrastructure/scraphandlers"
 	"linkTraccer/internal/infrastructure/siteclients/github"
 	"linkTraccer/internal/infrastructure/siteclients/stackoverflow"
 	"log/slog"
@@ -37,16 +38,17 @@ func main() {
 	logLevel.Set(slog.LevelDebug)
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+
 	dbConfig, err := sql.NewConfig()
 
 	if err != nil {
-		logger.Debug("ошибка при получении конфига БД", "err", err.Error())
+		logger.Error("ошибка при получении конфига БД", "err", err.Error())
 	}
 
 	pgxPool, err := initPgxPool(dbConfig)
 
 	if err != nil {
-		logger.Debug("ошибка инициализации пула соединений", "err", err.Error())
+		logger.Error("ошибка инициализации пула соединений", "err", err.Error())
 	}
 
 	var userStore scrapservice.UserRepo
@@ -65,11 +67,13 @@ func main() {
 		logger.Debug("ошибка конфигурации", "err", "переменная окружения AccessType должна быть SQL или ORM")
 	}
 
-	config, err := scrapperconfig.New()
+	config, err := scrapconfig.New()
 
 	if err != nil {
 		logger.Debug("ошибка при получении конфига scrapper", "err", err.Error())
 	}
+
+	transacter := transactor.New(pgxPool)
 
 	stackClient := stackoverflow.NewClient(stackOverflowAPI, &http.Client{Timeout: time.Second * 10},
 		stackoverflow.HTMLStrCleaner(maxPreviewLen))
@@ -94,8 +98,8 @@ func main() {
 
 	r := mux.NewRouter()
 
-	linksHandler := scrapperhandlers.NewLinkHandler(userStore, logger, stackClient, gitClient)
-	chatHandler := scrapperhandlers.NewChatHandler(userStore, logger)
+	linksHandler := scraphandlers.NewLinkHandler(userStore, transacter, logger, stackClient, gitClient)
+	chatHandler := scraphandlers.NewChatHandler(userStore, transacter, logger)
 
 	r.HandleFunc("/tg-chat/{id}", chatHandler.HandleChatChanges).
 		Methods(http.MethodPost, http.MethodDelete)
@@ -120,7 +124,7 @@ func initPgxPool(dbConfig *sql.DBConfig) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("ошибка при парсинга строки подключения к БД: %w", err)
 	}
 
-	pgxConfig.MinConns, pgxConfig.MaxConns = minCons, maxCons // разобраться с тем как настроить время ожидания конекшена
+	pgxConfig.MinConns, pgxConfig.MaxConns = minCons, maxCons // разобраться с тем как настроить время ожидания конекта
 
 	pgxPool, err := pgxpool.NewWithConfig(context.Background(), pgxConfig)
 

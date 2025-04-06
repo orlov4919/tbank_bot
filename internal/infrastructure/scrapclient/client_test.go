@@ -1,4 +1,4 @@
-package scrapperclient_test
+package scrapclient_test
 
 import (
 	"bytes"
@@ -7,8 +7,8 @@ import (
 	"io"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/domain/tgbot"
-	"linkTraccer/internal/infrastructure/scrapperclient"
-	"linkTraccer/internal/infrastructure/scrapperclient/mocks"
+	"linkTraccer/internal/infrastructure/scrapclient"
+	"linkTraccer/internal/infrastructure/scrapclient/mocks"
 	"net/http"
 	"testing"
 
@@ -16,15 +16,18 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type HTTPClient = scrapperclient.HTTPClient
+type HTTPClient = scrapclient.HTTPClient
 type ID = tgbot.ID
 type Link = tgbot.Link
 type ListLinksResponse = scrapper.ListLinksResponse
 type LinkResponse = scrapper.LinkResponse
 
-const localhost = "localhost:8080"
-const randomStr = "Hello word"
-const savedLink Link = "tbank.ru"
+const (
+	host           = "localhost"
+	port           = ":8080"
+	randomStr      = "Hello word"
+	savedLink Link = "tbank.ru"
+)
 
 var links = &ListLinksResponse{
 	Size: 1,
@@ -88,7 +91,7 @@ func TestScrapperClient_RegUser(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		client := scrapperclient.New(test.client, localhost)
+		client := scrapclient.New(test.client, host, port)
 		err := client.RegUser(test.id)
 
 		if test.correct {
@@ -150,7 +153,7 @@ func TestScrapperClient_UserLinks(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		client := scrapperclient.New(test.client, localhost)
+		client := scrapclient.New(test.client, host, port)
 		links, err := client.UserLinks(test.id)
 
 		if test.correct {
@@ -203,7 +206,7 @@ func TestScrapperClient_RemoveLink(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		client := scrapperclient.New(test.client, localhost)
+		client := scrapclient.New(test.client, host, port)
 		err := client.RemoveLink(test.id, test.link)
 
 		if test.correct {
@@ -256,7 +259,7 @@ func TestScrapperClient_AddLink(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		client := scrapperclient.New(test.client, localhost)
+		client := scrapclient.New(test.client, host, port)
 		err := client.AddLink(test.id, test.data)
 
 		if test.correct {

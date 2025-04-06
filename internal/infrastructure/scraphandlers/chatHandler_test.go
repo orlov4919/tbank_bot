@@ -1,4 +1,4 @@
-package scrapperhandlers_test
+package scraphandlers_test
 
 import (
 	"bytes"
@@ -7,8 +7,8 @@ import (
 	"io"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/dto"
-	"linkTraccer/internal/infrastructure/scrapperhandlers"
-	"linkTraccer/internal/infrastructure/scrapperhandlers/mocks"
+	"linkTraccer/internal/infrastructure/scraphandlers"
+	"linkTraccer/internal/infrastructure/scraphandlers/mocks"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +28,8 @@ var (
 )
 
 func TestChatHandler_PostHandler(t *testing.T) {
+	transactor := mocks.NewTransactor(t)
+
 	repoWithErr := mocks.NewUserRepo(t)
 	repoWithoutErr := mocks.NewUserRepo(t)
 
@@ -73,7 +75,7 @@ func TestChatHandler_PostHandler(t *testing.T) {
 	for _, test := range tests {
 		w := httptest.NewRecorder()
 
-		chatHandler := scrapperhandlers.NewChatHandler(test.repo, logger)
+		chatHandler := scraphandlers.NewChatHandler(test.repo, transactor, logger)
 
 		chatHandler.PostHandler(w, test.userID, test.userExist)
 
@@ -93,17 +95,20 @@ func TestChatHandler_PostHandler(t *testing.T) {
 }
 
 func TestChatHandler_DeleteHandler(t *testing.T) {
-	repoWithErr := mocks.NewUserRepo(t)
-	repoWithoutErr := mocks.NewUserRepo(t)
+	transactorWithoutErr := mocks.NewTransactor(t)
+	transactorWithErr := mocks.NewTransactor(t)
 
-	repoWithErr.On("DeleteUser", mock.Anything).Return(errRepo)
-	repoWithoutErr.On("DeleteUser", mock.Anything).Return(nil)
+	transactorWithoutErr.On("WithTransaction", mock.Anything, mock.Anything).Return(nil)
+	transactorWithErr.On("WithTransaction", mock.Anything, mock.Anything).Return(errRepo)
+
+	repoWithoutErr := mocks.NewUserRepo(t)
 
 	type TestCase struct {
 		name           string
 		userID         int64
 		userExist      bool
 		repo           scrapservice.UserRepo
+		transactor     scrapservice.Transactor
 		expectedBody   *dto.APIErrResponse
 		expectedStatus int
 	}
@@ -121,7 +126,8 @@ func TestChatHandler_DeleteHandler(t *testing.T) {
 			name:           "ошибка при удалении пользователя из БД",
 			userID:         2,
 			userExist:      true,
-			repo:           repoWithErr,
+			transactor:     transactorWithErr,
+			repo:           repoWithoutErr,
 			expectedBody:   nil,
 			expectedStatus: http.StatusInternalServerError,
 		},
@@ -130,6 +136,7 @@ func TestChatHandler_DeleteHandler(t *testing.T) {
 			userID:         2,
 			userExist:      true,
 			repo:           repoWithoutErr,
+			transactor:     transactorWithoutErr,
 			expectedBody:   nil,
 			expectedStatus: http.StatusOK,
 		},
@@ -138,7 +145,7 @@ func TestChatHandler_DeleteHandler(t *testing.T) {
 	for _, test := range tests {
 		w := httptest.NewRecorder()
 
-		chatHandler := scrapperhandlers.NewChatHandler(test.repo, logger)
+		chatHandler := scraphandlers.NewChatHandler(test.repo, test.transactor, logger)
 
 		chatHandler.DeleteHandler(w, test.userID, test.userExist)
 
@@ -158,6 +165,10 @@ func TestChatHandler_DeleteHandler(t *testing.T) {
 }
 
 func TestChatHandler_HandleChatChanges(t *testing.T) {
+	transactor := mocks.NewTransactor(t)
+
+	transactor.On("WithTransaction", mock.Anything, mock.Anything).Return(nil)
+
 	repoWithErr := mocks.NewUserRepo(t)
 	repoWithoutUsers := mocks.NewUserRepo(t)
 	repoWithUsers := mocks.NewUserRepo(t)
@@ -166,7 +177,6 @@ func TestChatHandler_HandleChatChanges(t *testing.T) {
 	repoWithoutUsers.On("UserExist", mock.Anything).Return(false, nil)
 	repoWithoutUsers.On("RegUser", mock.Anything).Return(nil)
 	repoWithUsers.On("UserExist", mock.Anything).Return(true, nil)
-	repoWithUsers.On("DeleteUser", mock.Anything).Return(nil)
 
 	type TestCase struct {
 		name           string
@@ -238,7 +248,7 @@ func TestChatHandler_HandleChatChanges(t *testing.T) {
 
 		r = mux.SetURLVars(r, vars)
 
-		chatHandler := scrapperhandlers.NewChatHandler(test.repo, logger)
+		chatHandler := scraphandlers.NewChatHandler(test.repo, transactor, logger)
 
 		chatHandler.HandleChatChanges(w, r)
 

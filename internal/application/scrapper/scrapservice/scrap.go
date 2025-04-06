@@ -1,6 +1,7 @@
 package scrapservice
 
 import (
+	"context"
 	"linkTraccer/internal/domain/scrapper"
 	"log/slog"
 	"time"
@@ -29,7 +30,7 @@ type LinkPaginator interface {
 
 type UserRepo interface {
 	NewLinksPaginator() LinkPaginator
-	TrackLink(userID User, link Link, update time.Time) error
+	TrackLink(ctx context.Context, userID User, link Link, update time.Time) error
 	ChangeLastCheckTime(link Link, checkTime time.Time) error
 	UsersWhoTrackLink(linkID LinkID) ([]User, error)
 	AllUserLinks(userID User) ([]Link, error)
@@ -37,7 +38,7 @@ type UserRepo interface {
 	UntrackLink(user User, link Link) error
 	UserExist(UserID User) (bool, error)
 	RegUser(UserID User) error
-	DeleteUser(user User) error
+	DeleteUser(ctx context.Context, user User) error
 }
 
 type SiteClient interface {
@@ -47,6 +48,10 @@ type SiteClient interface {
 
 type NotifyService interface {
 	SendUpdates(linkInfo LinkInfo, linkUpdates LinkUpdates) error
+}
+
+type Transactor interface {
+	WithTransaction(ctx context.Context, fn func(ctx context.Context) error) error
 }
 
 type Scrapper struct {

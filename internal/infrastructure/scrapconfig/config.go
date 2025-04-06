@@ -1,4 +1,4 @@
-package scrapperconfig
+package scrapconfig
 
 import (
 	"fmt"

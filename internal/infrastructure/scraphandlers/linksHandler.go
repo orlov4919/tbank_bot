@@ -1,6 +1,7 @@
-package scrapperhandlers
+package scraphandlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,16 +24,19 @@ type UserRepo = scrapservice.UserRepo
 type AddLinkRequest = scrapper.AddLinkRequest
 type SiteClient = scrapservice.SiteClient
 type RemoveLink = scrapper.RemoveLinkRequest
+type Transactor = scrapservice.Transactor
 
 type LinkHandler struct {
 	userRepo    UserRepo
+	transactor  Transactor
 	siteClients []SiteClient
 	log         *slog.Logger
 }
 
-func NewLinkHandler(repo UserRepo, log *slog.Logger, clients ...SiteClient) *LinkHandler {
+func NewLinkHandler(repo UserRepo, transactor Transactor, log *slog.Logger, clients ...SiteClient) *LinkHandler {
 	return &LinkHandler{
 		userRepo:    repo,
+		transactor:  transactor,
 		siteClients: clients,
 		log:         log,
 	}
@@ -139,7 +143,6 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 
 	if err := json.Unmarshal(reqData, addLinkRequest); err != nil {
 		l.apiErrToResponse(w, dto.ApiErrBadJSON, http.StatusBadRequest)
-
 		return
 	}
 
@@ -154,7 +157,6 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 
 	if !canTrackLink {
 		l.apiErrToResponse(w, dto.ApiErrBadLink, http.StatusBadRequest)
-
 		return
 	}
 
@@ -164,19 +166,25 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 		w.WriteHeader(http.StatusInternalServerError)
 
 		l.log.Info(fmt.Sprintf("ошибка при проверке, отслеживает пользователь %d ссылку %s",
-			userID, addLinkRequest.Link),
-			"err", err)
+			userID, addLinkRequest.Link), "err", err)
 
 		return
 	}
 
 	if userTrackLink {
 		l.apiErrToResponse(w, dto.ApiErrDuplicateLink, http.StatusBadRequest)
-
 		return
 	}
 
-	err = l.userRepo.TrackLink(userID, addLinkRequest.Link, time.Now().In(MoskowTime).Truncate(time.Second))
+	err = l.transactor.WithTransaction(context.Background(), func(ctx context.Context) error {
+		err = l.userRepo.TrackLink(ctx, userID, addLinkRequest.Link, time.Now().In(MoskowTime).Truncate(time.Second))
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -229,7 +237,9 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, r
 		return
 	}
 
-	if err = l.userRepo.UntrackLink(userID, removeLink.Link); err != nil {
+	err = l.userRepo.UntrackLink(userID, removeLink.Link)
+
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
 		l.log.Info("ошибка при удалении ссылки", "err", err)

@@ -1,4 +1,4 @@
-package scrapperhandlers_test
+package scraphandlers_test
 
 import (
 	"bytes"
@@ -7,8 +7,8 @@ import (
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/dto"
 	"linkTraccer/internal/domain/scrapper"
-	"linkTraccer/internal/infrastructure/scrapperhandlers"
-	"linkTraccer/internal/infrastructure/scrapperhandlers/mocks"
+	"linkTraccer/internal/infrastructure/scraphandlers"
+	"linkTraccer/internal/infrastructure/scraphandlers/mocks"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -55,6 +55,8 @@ type listLinksResponse = scrapper.ListLinksResponse
 type LinkResponse = scrapper.LinkResponse
 
 func TestLinkHandler_GetMethodHandler(t *testing.T) {
+	transactor := mocks.NewTransactor(t)
+
 	repoWithErr := mocks.NewUserRepo(t)
 	repoWithLinks := mocks.NewUserRepo(t)
 	repoWithoutLinks := mocks.NewUserRepo(t)
@@ -100,7 +102,7 @@ func TestLinkHandler_GetMethodHandler(t *testing.T) {
 	for _, test := range tests {
 		w := httptest.NewRecorder()
 
-		linkHandler := scrapperhandlers.NewLinkHandler(test.repo, logger, stackClient, gitClient)
+		linkHandler := scraphandlers.NewLinkHandler(test.repo, transactor, logger, stackClient, gitClient)
 		linkHandler.GetMethodHandler(w, test.userID)
 
 		assert.Equal(t, test.httpStatus, w.Code)
@@ -119,9 +121,14 @@ func TestLinkHandler_GetMethodHandler(t *testing.T) {
 }
 
 func TestLinkHandler_PostMethodHandler(t *testing.T) {
+	transactorWithErr := mocks.NewTransactor(t)
+	transactorWithoutErr := mocks.NewTransactor(t)
+	//
+	transactorWithErr.On("WithTransaction", mock.Anything, mock.Anything).Return(errRepo)
+	transactorWithoutErr.On("WithTransaction", mock.Anything, mock.Anything).Return(nil)
+
 	repoWithErrUserTrackLink := mocks.NewUserRepo(t)
 	repoUserAlwaysTrackLink := mocks.NewUserRepo(t)
-	repoUserAlwaysNotTrackLinkWithErr := mocks.NewUserRepo(t)
 	repoUserAlwaysNotTrackLink := mocks.NewUserRepo(t)
 
 	repoWithErrUserTrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
@@ -130,17 +137,8 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 	repoUserAlwaysTrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
 		Return(true, nil)
 
-	repoUserAlwaysNotTrackLinkWithErr.On("UserTrackLink", mock.Anything, mock.Anything).
-		Return(false, nil)
-
-	repoUserAlwaysNotTrackLinkWithErr.On("TrackLink", mock.Anything, mock.Anything, mock.Anything).
-		Return(errRepo)
-
 	repoUserAlwaysNotTrackLink.On("UserTrackLink", mock.Anything, mock.Anything).
 		Return(false, nil)
-
-	repoUserAlwaysNotTrackLink.On("TrackLink", mock.Anything, mock.Anything, mock.Anything).
-		Return(nil)
 
 	stackClient := mocks.NewSiteClient(t)
 
@@ -150,6 +148,7 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 	type testCase struct {
 		name           string
 		userRepo       scrapservice.UserRepo
+		transactor     scrapservice.Transactor
 		userID         int64
 		httpStatus     int
 		reqData        []byte
@@ -201,7 +200,8 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 		},
 		{
 			name:           "ошибка при добавлении новой ссылки в БД",
-			userRepo:       repoUserAlwaysNotTrackLinkWithErr,
+			userRepo:       repoUserAlwaysNotTrackLink,
+			transactor:     transactorWithErr,
 			userID:         1,
 			httpStatus:     http.StatusInternalServerError,
 			reqData:        addGoodLink,
@@ -211,6 +211,7 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 		},
 		{
 			name:           "успешное добавлении новой ссылки в БД",
+			transactor:     transactorWithoutErr,
 			userRepo:       repoUserAlwaysNotTrackLink,
 			userID:         1,
 			httpStatus:     http.StatusOK,
@@ -224,7 +225,7 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 	for _, test := range tests {
 		w := httptest.NewRecorder()
 
-		linkHandler := scrapperhandlers.NewLinkHandler(test.userRepo, logger, stackClient)
+		linkHandler := scraphandlers.NewLinkHandler(test.userRepo, test.transactor, logger, stackClient)
 		linkHandler.PostMethodHandler(w, test.userID, test.reqData)
 
 		assert.Equal(t, test.httpStatus, w.Code)
@@ -251,6 +252,8 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 }
 
 func TestLinkHandler_DeleteMethodHandler(t *testing.T) {
+	transactor := mocks.NewTransactor(t)
+
 	repoWithErrUserTrackLink := mocks.NewUserRepo(t)
 	repoUserAlwaysNotTrackLink := mocks.NewUserRepo(t)
 	repoUntrackLinkWithErr := mocks.NewUserRepo(t)
@@ -343,7 +346,7 @@ func TestLinkHandler_DeleteMethodHandler(t *testing.T) {
 	for _, test := range tests {
 		w := httptest.NewRecorder()
 
-		linkHandler := scrapperhandlers.NewLinkHandler(test.userRepo, logger, stackClient)
+		linkHandler := scraphandlers.NewLinkHandler(test.userRepo, transactor, logger, stackClient)
 		linkHandler.DeleteMethodHandler(w, test.userID, test.reqData)
 
 		assert.Equal(t, test.httpStatus, w.Code)
@@ -371,6 +374,8 @@ func TestLinkHandler_DeleteMethodHandler(t *testing.T) {
 }
 
 func TestLinkHandler_HandleLinksChanges(t *testing.T) {
+	transactor := mocks.NewTransactor(t)
+
 	userRepoWithErr := mocks.NewUserRepo(t)
 	userRepoWithoutUsers := mocks.NewUserRepo(t)
 	userRepoWithUsers := mocks.NewUserRepo(t)
@@ -480,7 +485,7 @@ func TestLinkHandler_HandleLinksChanges(t *testing.T) {
 	for _, test := range tests {
 		w := httptest.NewRecorder()
 
-		linkHandler := scrapperhandlers.NewLinkHandler(test.userRepo, logger, stackClient)
+		linkHandler := scraphandlers.NewLinkHandler(test.userRepo, transactor, logger, stackClient)
 
 		linkHandler.HandleLinksChanges(w, test.req)
 

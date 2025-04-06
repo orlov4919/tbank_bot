@@ -11,7 +11,7 @@ type DBConfig struct {
 	DBName     string `env:"DB_NAME"`
 	DBHost     string `env:"DB_HOST"`
 	DBPort     string `env:"DB_PORT"`
-	BatchSize  int    `env:"BATCH_SIZE"`
+	BatchSize  uint   `env:"BATCH_SIZE"`
 	AccessType string `env:"ACCESS_TYPE"`
 }
 
