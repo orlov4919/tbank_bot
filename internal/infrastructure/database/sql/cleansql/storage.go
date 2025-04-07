@@ -3,6 +3,7 @@ package cleansql
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
@@ -27,12 +28,6 @@ type Tag = scrapper.Tag
 type UserStorage struct {
 	batchSize uint
 	db        *pgxpool.Pool
-}
-
-type linkPaginator struct {
-	db         *pgxpool.Pool
-	lastLinkID int64
-	limit      uint
 }
 
 func NewStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) *UserStorage {
@@ -220,23 +215,37 @@ func (u *UserStorage) DeleteUntrackedLinks() error {
 	return nil
 }
 
-func (u *UserStorage) NewLinksPaginator() scrapservice.LinkPaginator {
-	return &linkPaginator{db: u.db, limit: u.batchSize}
+type linkPaginator struct {
+	db         *pgxpool.Pool
+	lastLinkID int64
+	limit      uint
+	hasLinks   bool
 }
 
-func (l *linkPaginator) LinksBatch() ([]LinkInfo, error) {
+func (u *UserStorage) NewLinksPaginator() scrapservice.LinkPaginator {
+	return &linkPaginator{db: u.db, limit: u.batchSize, hasLinks: true}
+}
+
+func (l *linkPaginator) HasLinks() bool {
+	return l.hasLinks
+}
+
+func (l *linkPaginator) LinksBatch() ([]*LinkInfo, error) {
 	var id int64
 
 	var link string
 
 	var lastCheck time.Time
 
-	var linkInfo LinkInfo
-
 	rows, err := l.db.Query(context.Background(),
 		`SELECT link_id, link_url, last_update_check FROM links 
              WHERE link_id > ($1) AND CURRENT_TIMESTAMP - last_update_check > '5 minutes' 
              ORDER BY link_id ASC LIMIT ($2);`, l.lastLinkID, l.limit)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		l.hasLinks = false
+		return []*LinkInfo{}, nil
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("ошика при выполнении запроса на получение пачки ссылок: %w", err)
@@ -244,9 +253,11 @@ func (l *linkPaginator) LinksBatch() ([]LinkInfo, error) {
 
 	defer rows.Close()
 
-	links := make([]LinkInfo, 0, l.limit)
+	links := make([]*LinkInfo, 0, l.limit)
 
 	for rows.Next() {
+		linkInfo := &LinkInfo{}
+
 		if err = rows.Scan(&id, &link, &lastCheck); err != nil {
 			return nil, fmt.Errorf("ошика при сканировании ссылок: %w", err)
 		}

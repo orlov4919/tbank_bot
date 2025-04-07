@@ -2,7 +2,9 @@ package buildersql
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
@@ -34,6 +36,7 @@ type linkPaginator struct {
 	db         *pgxpool.Pool
 	lastLinkID int64
 	limit      uint
+	hasLinks   bool
 }
 
 func NewStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) *UserStorage {
@@ -273,26 +276,29 @@ func (u *UserStorage) DeleteUntrackedLinks() error {
 }
 
 func (u *UserStorage) NewLinksPaginator() scrapservice.LinkPaginator {
-	return &linkPaginator{db: u.db, limit: u.batchSize}
+	return &linkPaginator{db: u.db, limit: u.batchSize, hasLinks: true}
 }
 
-func (l *linkPaginator) LinksBatch() ([]LinkInfo, error) {
+func (l *linkPaginator) HasLinks() bool {
+	return l.hasLinks
+}
+
+func (l *linkPaginator) LinksBatch() ([]*LinkInfo, error) {
 	var id int64
 
 	var link string
 
 	var lastCheck time.Time
 
-	var linkInfo LinkInfo
+	rows, err := l.db.Query(context.Background(),
+		`SELECT link_id, link_url, last_update_check FROM links 
+             WHERE link_id > ($1) AND CURRENT_TIMESTAMP - last_update_check > '5 minutes' 
+             ORDER BY link_id ASC LIMIT ($2);`, l.lastLinkID, l.limit)
 
-	sqlCmd, _, _ := goqu.From("links").
-		Select("link_id", "link_url", "last_update_check").
-		Where(goqu.C("link_id").Gt(goqu.L("$1")),
-			goqu.C("last_update_check").Lt(goqu.L("CURRENT_TIMESTAMP - INTERVAL '5 minutes'"))).
-		Order(goqu.I("link_id").Asc()).Limit(l.limit).
-		ToSQL()
-
-	rows, err := l.db.Query(context.Background(), sqlCmd, l.lastLinkID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		l.hasLinks = false
+		return []*LinkInfo{}, nil
+	}
 
 	if err != nil {
 		return nil, fmt.Errorf("ошика при выполнении запроса на получение пачки ссылок: %w", err)
@@ -300,9 +306,11 @@ func (l *linkPaginator) LinksBatch() ([]LinkInfo, error) {
 
 	defer rows.Close()
 
-	links := make([]LinkInfo, 0, l.limit)
+	links := make([]*LinkInfo, 0, l.limit)
 
 	for rows.Next() {
+		linkInfo := &LinkInfo{}
+
 		if err = rows.Scan(&id, &link, &lastCheck); err != nil {
 			return nil, fmt.Errorf("ошика при сканировании ссылок: %w", err)
 		}

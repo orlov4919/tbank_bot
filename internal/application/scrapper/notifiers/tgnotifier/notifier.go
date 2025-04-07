@@ -31,7 +31,7 @@ func New(userRepo scrapservice.UserRepo, botClient BotClient) *TgNotifier {
 	}
 }
 
-func (t *TgNotifier) SendUpdates(linkInfo LinkInfo, linkUpdates LinkUpdates) error {
+func (t *TgNotifier) SendUpdates(linkInfo *LinkInfo, linkUpdates LinkUpdates) error {
 	users, err := t.userRepo.UsersWhoTrackLink(linkInfo.ID)
 
 	if err != nil {

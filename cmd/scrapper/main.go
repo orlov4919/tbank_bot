@@ -33,9 +33,9 @@ const (
 )
 
 func main() {
-	var logLevel = new(slog.LevelVar)
+	logLevel := new(slog.LevelVar)
 
-	logLevel.Set(slog.LevelDebug)
+	logLevel.Set(slog.LevelInfo)
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 
@@ -43,12 +43,16 @@ func main() {
 
 	if err != nil {
 		logger.Error("ошибка при получении конфига БД", "err", err.Error())
+
+		return
 	}
 
 	pgxPool, err := initPgxPool(dbConfig)
 
 	if err != nil {
 		logger.Error("ошибка инициализации пула соединений", "err", err.Error())
+
+		return
 	}
 
 	var userStore scrapservice.UserRepo
@@ -64,16 +68,18 @@ func main() {
 
 		userStore = builderSqlStore
 	default:
-		logger.Debug("ошибка конфигурации", "err", "переменная окружения AccessType должна быть SQL или ORM")
+		logger.Error("ошибка конфигурации", "err", "переменная окружения AccessType должна быть SQL или ORM")
+
+		return
 	}
 
 	config, err := scrapconfig.New()
 
 	if err != nil {
-		logger.Debug("ошибка при получении конфига scrapper", "err", err.Error())
-	}
+		logger.Error("ошибка при получении конфига scrapper", "err", err.Error())
 
-	transacter := transactor.New(pgxPool)
+		return
+	}
 
 	stackClient := stackoverflow.NewClient(stackOverflowAPI, &http.Client{Timeout: time.Second * 10},
 		stackoverflow.HTMLStrCleaner(maxPreviewLen))
@@ -91,12 +97,14 @@ func main() {
 	_, err = s.Every(time.Minute).Do(scrapper.CheckLinksUpdates)
 
 	if err != nil {
-		logger.Debug("ошибка при запуске планировщика с проверкой ссылок", "err", err.Error())
+		logger.Error("ошибка при запуске планировщика с проверкой ссылок", "err", err.Error())
 	}
 
 	s.StartAsync()
 
 	r := mux.NewRouter()
+
+	transacter := transactor.New(pgxPool)
 
 	linksHandler := scraphandlers.NewLinkHandler(userStore, transacter, logger, stackClient, gitClient)
 	chatHandler := scraphandlers.NewChatHandler(userStore, transacter, logger)
@@ -138,3 +146,24 @@ func initPgxPool(dbConfig *sql.DBConfig) (*pgxpool.Pool, error) {
 
 	return pgxPool, nil
 }
+
+//func initUserStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) (scrapservice.UserRepo, error) {
+//	var userStore scrapservice.UserRepo
+//
+//	switch dbConfig.AccessType {
+//	case "SQL":
+//		cleanSqlStore := cleansql.NewStore(dbConfig, pgxPool)
+//
+//		userStore = cleanSqlStore
+//
+//	case "ORM":
+//		builderSqlStore := buildersql.NewStore(dbConfig, pgxPool)
+//
+//		userStore = builderSqlStore
+//	default:
+//		logger.Error("ошибка конфигурации", "err", "переменная окружения AccessType должна быть SQL или ORM")
+//
+//		return
+//	}
+//
+//}

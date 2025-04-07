@@ -4,11 +4,12 @@ import (
 	"context"
 	"linkTraccer/internal/domain/scrapper"
 	"log/slog"
+	"sync"
 	"time"
 )
 
 const (
-	descriptionFormat = "Пришло новое уведомление 🔥\n\nСобытие: %s\nПользователь: %s\nВремя создаения: %s\nПревью: %s\n\n"
+	workersNum = 4
 )
 
 var (
@@ -24,8 +25,8 @@ type LinkID = scrapper.LinkID
 type LinkUpdate = scrapper.LinkUpdate
 
 type LinkPaginator interface {
-	LinksBatch() ([]LinkInfo, error)
-	//HasNext() bool // для удобства был бы крут, но так хыз
+	LinksBatch() ([]*LinkInfo, error)
+	HasLinks() bool
 }
 
 type UserRepo interface {
@@ -47,7 +48,7 @@ type SiteClient interface {
 }
 
 type NotifyService interface {
-	SendUpdates(linkInfo LinkInfo, linkUpdates LinkUpdates) error
+	SendUpdates(linkInfo *LinkInfo, linkUpdates LinkUpdates) error
 }
 
 type Transactor interface {
@@ -72,46 +73,73 @@ func New(userRepo UserRepo, notifyService NotifyService, log *slog.Logger, siteC
 
 func (scrap *Scrapper) CheckLinksUpdates() {
 	linksPaginator := scrap.userRepo.NewLinksPaginator()
-	links, err := linksPaginator.LinksBatch()
 
-	for len(links) != 0 && err == nil {
-		for _, linkInfo := range links {
-			for _, siteClient := range scrap.siteClients {
+	for linksPaginator.HasLinks() {
+		links, err := linksPaginator.LinksBatch()
 
-				if !siteClient.CanTrack(linkInfo.URL) {
-					continue
-				}
+		if err != nil {
+			scrap.log.Error("ошибка при батчинге ссылок", "err", err.Error())
 
-				t := time.Now().In(MoskowTime).Truncate(time.Second)
-
-				linkUpdates, err := siteClient.LinkUpdates(linkInfo.URL, linkInfo.LastUpdate)
-
-				if err != nil {
-					scrap.log.Info("при получении состояния ссылки произошла ошибка", "err", err.Error())
-					break
-				}
-
-				if err = scrap.userRepo.ChangeLastCheckTime(linkInfo.URL, t); err != nil {
-					scrap.log.Info("ошибка при изменении даты последней проверки ссылки", "err", err.Error())
-					break
-				}
-
-				if len(linkUpdates) == 0 {
-					break
-				}
-
-				scrap.log.Info("ссылка " + linkInfo.URL + " получила новое состояние")
-
-				if err = scrap.notifyService.SendUpdates(linkInfo, linkUpdates); err != nil {
-					scrap.log.Info("ошибка при отправке обновлений", "err", err.Error())
-				}
-			}
+			continue
 		}
 
-		links, err = linksPaginator.LinksBatch()
+		linksChan := make(chan *LinkInfo, len(links))
+
+		go linksToChan(links, linksChan)
+
+		wg := &sync.WaitGroup{}
+
+		wg.Add(workersNum)
+
+		for worker := 0; worker < workersNum; worker++ {
+			scrap.checkLinksUpdates(wg, linksChan)
+		}
+
+		wg.Wait()
+	}
+}
+
+func linksToChan(links []*LinkInfo, out chan<- *LinkInfo) {
+	for _, link := range links {
+		out <- link
 	}
 
-	if err != nil {
-		scrap.log.Info("ошибка при проверке ссылок", "err", err.Error())
+	close(out)
+}
+
+func (scrap *Scrapper) checkLinksUpdates(wg *sync.WaitGroup, linksChan <-chan *LinkInfo) {
+	defer wg.Done()
+
+	for linkInfo := range linksChan {
+		for _, siteClient := range scrap.siteClients {
+
+			if !siteClient.CanTrack(linkInfo.URL) {
+				continue
+			}
+
+			t := time.Now().In(MoskowTime).Truncate(time.Second)
+
+			linkUpdates, err := siteClient.LinkUpdates(linkInfo.URL, linkInfo.LastUpdate)
+
+			if err != nil {
+				scrap.log.Info("при получении состояния ссылки произошла ошибка", "err", err.Error())
+				break
+			}
+
+			if err = scrap.userRepo.ChangeLastCheckTime(linkInfo.URL, t); err != nil {
+				scrap.log.Info("ошибка при изменении даты последней проверки ссылки", "err", err.Error())
+				break
+			}
+
+			if len(linkUpdates) == 0 {
+				break
+			}
+
+			scrap.log.Info("ссылка " + linkInfo.URL + " получила новое состояние")
+
+			if err = scrap.notifyService.SendUpdates(linkInfo, linkUpdates); err != nil {
+				scrap.log.Info("ошибка при отправке обновлений", "err", err.Error())
+			}
+		}
 	}
 }
