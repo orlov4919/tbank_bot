@@ -4,9 +4,9 @@ services:
     container_name: postgres
     environment:
       - TZ=Europe/Moscow
-      - POSTGRES_USER=postgres
-      - POSTGRES_DB=linkTraccer
-      - POSTGRES_PASSWORD=1234
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_PASSWORD=${DB_PASS}
     ports:
       - "5432:5432"
     healthcheck:
@@ -25,4 +25,4 @@ services:
       - ./migrations:/migrations
     command:
       -path /migrations
-      -database "postgres://postgres:1234@postgres:5432/linkTraccer?sslmode=disable" up
+      -database "postgres://${DB_USER}:${DB_PASS}@postgres:5432/${DB_NAME}?sslmode=disable" up

@@ -23,11 +23,6 @@ const (
 	maxTitleLen    = 200
 )
 
-type Link = scrapper.Link
-type LinkUpdates = scrapper.LinkUpdates
-type LinkUpdate = scrapper.LinkUpdate
-type GitUpdates = scrapper.GitUpdates
-
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -52,7 +47,7 @@ func NewClient(host, token string, client HTTPClient) *GitClient {
 	}
 }
 
-func (git *GitClient) CanTrack(link Link) bool {
+func (git *GitClient) CanTrack(link scrapper.Link) bool {
 	parsedLink, err := url.Parse(link)
 
 	if err != nil {
@@ -101,7 +96,7 @@ func (git *GitClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string) bo
 	return true
 }
 
-func (git *GitClient) LinkUpdates(link Link, updatesSince time.Time) (LinkUpdates, error) {
+func (git *GitClient) LinkUpdates(link scrapper.Link, updatesSince time.Time) (scrapper.LinkUpdates, error) {
 	parsedLink, err := url.Parse(link)
 	updatesSince = updatesSince.Add(-time.Hour * 3)
 
@@ -137,7 +132,7 @@ func (git *GitClient) LinkUpdates(link Link, updatesSince time.Time) (LinkUpdate
 		return nil, siteclients.NewErrBadRequestStatus("не смогли получить состояние ссылки", resp.StatusCode)
 	}
 
-	gitUpdates := &GitUpdates{}
+	gitUpdates := &scrapper.GitUpdates{}
 
 	if err := json.NewDecoder(resp.Body).Decode(&gitUpdates); err != nil {
 		return nil, fmt.Errorf("в клиете %s при парсиге ответа произошла ошибка: %w", clientName, err)
@@ -146,10 +141,10 @@ func (git *GitClient) LinkUpdates(link Link, updatesSince time.Time) (LinkUpdate
 	return git.gitUpdatesToLinkUpdates(gitUpdates), nil
 }
 
-func (git *GitClient) gitUpdatesToLinkUpdates(gitUpdates *GitUpdates) LinkUpdates {
+func (git *GitClient) gitUpdatesToLinkUpdates(gitUpdates *scrapper.GitUpdates) scrapper.LinkUpdates {
 	var updateType string
 
-	linkUpdates := make([]*LinkUpdate, 0, gitUpdates.Count)
+	linkUpdates := make([]*scrapper.LinkUpdate, 0, gitUpdates.Count)
 
 	for _, update := range gitUpdates.Updates {
 		if update.PullRequest.URL == "" {
@@ -160,7 +155,7 @@ func (git *GitClient) gitUpdatesToLinkUpdates(gitUpdates *GitUpdates) LinkUpdate
 
 		createdTimeToMsk := update.CreatedTime.Add(time.Hour * 3).Format("15:04:05 02-01-2006")
 
-		linkUpdates = append(linkUpdates, &LinkUpdate{
+		linkUpdates = append(linkUpdates, &scrapper.LinkUpdate{
 			Header:     updateType,
 			UserName:   update.GitUser.Login,
 			CreateTime: createdTimeToMsk,

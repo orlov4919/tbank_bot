@@ -7,15 +7,11 @@ import (
 	"io"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/domain/tgbot"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
 	"strconv"
 )
-
-type Link = tgbot.Link
-type ID = tgbot.ID
 
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -39,7 +35,7 @@ func New(client HTTPClient, host, port string) *ScrapperClient {
 	}
 }
 
-func (s *ScrapperClient) RegUser(id ID) error {
+func (s *ScrapperClient) RegUser(id tgbot.ID) error {
 	url := &url.URL{
 		Scheme: s.scheme,
 		Host:   s.host,
@@ -66,7 +62,7 @@ func (s *ScrapperClient) RegUser(id ID) error {
 	return nil
 }
 
-func (s *ScrapperClient) UserLinks(id ID) ([]Link, error) {
+func (s *ScrapperClient) UserLinks(id tgbot.ID) ([]tgbot.Link, error) {
 	url := &url.URL{
 		Scheme: s.scheme,
 		Host:   s.host,
@@ -99,7 +95,7 @@ func (s *ScrapperClient) UserLinks(id ID) ([]Link, error) {
 		return nil, fmt.Errorf("не смогли десериализовать ссылки пользователя: %w ", err)
 	}
 
-	links := make([]Link, 0, listLinks.Size)
+	links := make([]tgbot.Link, 0, listLinks.Size)
 
 	for _, link := range listLinks.Links {
 		links = append(links, link.URL)
@@ -108,7 +104,7 @@ func (s *ScrapperClient) UserLinks(id ID) ([]Link, error) {
 	return links, nil
 }
 
-func (s *ScrapperClient) RemoveLink(id ID, link Link) error {
+func (s *ScrapperClient) RemoveLink(id tgbot.ID, link tgbot.Link) error {
 	removeLink, err := json.Marshal(&scrapper.RemoveLinkRequest{Link: link})
 
 	if err != nil {
@@ -146,7 +142,7 @@ func (s *ScrapperClient) RemoveLink(id ID, link Link) error {
 	return nil
 }
 
-func (s *ScrapperClient) AddLink(id ID, userCtx *tgbot.ContextData) error {
+func (s *ScrapperClient) AddLink(id tgbot.ID, userCtx *tgbot.ContextData) error {
 	addLink, err := json.Marshal(&scrapper.AddLinkRequest{
 		Link:    userCtx.URL,
 		Tags:    userCtx.Tags,
@@ -176,14 +172,12 @@ func (s *ScrapperClient) AddLink(id ID, userCtx *tgbot.ContextData) error {
 	resp, err := s.client.Do(req)
 
 	if err != nil {
-		log.Println("ошибка при выполнении запроса")
 		return fmt.Errorf("запрос на добавление ссылки пользователя, закончился ошибкой :%w", err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println("Не верный статус")
 		return NewErrBadRequestStatus("не смогли добавить ссылку пользователя", resp.StatusCode)
 	}
 

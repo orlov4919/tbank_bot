@@ -9,7 +9,7 @@ type LinkID = int64
 type Tag = string
 
 type StackAnswers struct {
-	Answers []StackAnswer `json:"items"`
+	Items []StackAnswer `json:"items"`
 }
 
 type StackAnswer struct {
@@ -20,7 +20,7 @@ type StackAnswer struct {
 }
 
 type StackComments struct {
-	Comments []StackComment `json:"items"`
+	Items []StackComment `json:"items"`
 }
 
 type StackComment struct {

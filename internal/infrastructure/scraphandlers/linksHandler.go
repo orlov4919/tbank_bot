@@ -46,7 +46,7 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 	reqData, err := io.ReadAll(r.Body)
 
 	if err != nil {
-		l.apiErrToResponse(w, dto.ApiErrCantReadBody, http.StatusBadRequest)
+		l.apiErrToResponse(w, dto.APIErrCantReadBody, http.StatusBadRequest)
 
 		return
 	}
@@ -56,13 +56,13 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 	userID, err := strconv.ParseInt(r.Header.Get("Tg-Chat-Id"), 10, 64)
 
 	if err != nil {
-		l.apiErrToResponse(w, dto.ApiErrIDNotNum, http.StatusBadRequest)
+		l.apiErrToResponse(w, dto.APIErrIDNotNum, http.StatusBadRequest)
 
 		return
 	}
 
 	if userID < 0 {
-		l.apiErrToResponse(w, dto.ApiErrNegativeID, http.StatusBadRequest)
+		l.apiErrToResponse(w, dto.APIErrNegativeID, http.StatusBadRequest)
 
 		return
 	}
@@ -73,7 +73,7 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(http.StatusInternalServerError)
 
 		if r.URL != nil {
-			l.log.Info(
+			l.log.Error(
 				fmt.Sprintf("обработка запроса %s закончилась ошибкой, при проверке пользователя в БД", r.URL.Path),
 				"err", err.Error())
 		}
@@ -82,7 +82,7 @@ func (l *LinkHandler) HandleLinksChanges(w http.ResponseWriter, r *http.Request)
 	}
 
 	if !userExist {
-		l.apiErrToResponse(w, dto.ApiErrUserNotRegistered, http.StatusBadRequest)
+		l.apiErrToResponse(w, dto.APIErrUserNotRegistered, http.StatusBadRequest)
 
 		return
 	}
@@ -109,8 +109,8 @@ func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int64) {
 		w.WriteHeader(http.StatusInternalServerError)
 
 		if err != nil {
-			l.log.Info(
-				fmt.Sprintf("ошибка при получении всех ссылок пользователя %d", userID),
+			l.log.Error(
+				fmt.Sprintf("ошибка в БД при получении всех ссылок пользователя %d", userID),
 				"err", err.Error())
 		}
 
@@ -133,7 +133,7 @@ func (l *LinkHandler) GetMethodHandler(w http.ResponseWriter, userID int64) {
 	}
 
 	if err = json.NewEncoder(w).Encode(listLinksResponse); err != nil {
-		l.log.Info(fmt.Sprintf("ошибка при формировании JSON всех ссылок пользователя %d", userID),
+		l.log.Error(fmt.Sprintf("ошибка при формировании JSON всех ссылок пользователя %d", userID),
 			"err", err)
 	}
 }
@@ -142,7 +142,7 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 	addLinkRequest := &AddLinkRequest{}
 
 	if err := json.Unmarshal(reqData, addLinkRequest); err != nil {
-		l.apiErrToResponse(w, dto.ApiErrBadJSON, http.StatusBadRequest)
+		l.apiErrToResponse(w, dto.APIErrBadJSON, http.StatusBadRequest)
 		return
 	}
 
@@ -156,7 +156,7 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 	}
 
 	if !canTrackLink {
-		l.apiErrToResponse(w, dto.ApiErrBadLink, http.StatusBadRequest)
+		l.apiErrToResponse(w, dto.APIErrBadLink, http.StatusBadRequest)
 		return
 	}
 
@@ -165,14 +165,14 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
-		l.log.Info(fmt.Sprintf("ошибка при проверке, отслеживает пользователь %d ссылку %s",
+		l.log.Error(fmt.Sprintf("ошибка в БД при проверке, отслеживает пользователь %d ссылку %s",
 			userID, addLinkRequest.Link), "err", err)
 
 		return
 	}
 
 	if userTrackLink {
-		l.apiErrToResponse(w, dto.ApiErrDuplicateLink, http.StatusBadRequest)
+		l.apiErrToResponse(w, dto.APIErrDuplicateLink, http.StatusBadRequest)
 		return
 	}
 
@@ -189,7 +189,7 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
-		l.log.Info(fmt.Sprintf("ошибка при добавление отслеживания пользователем %d ссылки %s",
+		l.log.Error(fmt.Sprintf("ошибка при добавлении в БД отслеживания пользователем %d ссылки %s",
 			userID, addLinkRequest.Link),
 			"err", err)
 
@@ -206,7 +206,7 @@ func (l *LinkHandler) PostMethodHandler(w http.ResponseWriter, userID int64, req
 	}
 
 	if err := json.NewEncoder(w).Encode(linkResponse); err != nil {
-		l.log.Debug("Ошибка при формировании json ответа", "err", err)
+		l.log.Error("Ошибка при формировании JSON ответа, подтверждающего добавление новой ссылки ", "err", err)
 	}
 }
 
@@ -214,7 +214,7 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, r
 	removeLink := &RemoveLink{}
 
 	if err := json.Unmarshal(reqData, removeLink); err != nil {
-		l.apiErrToResponse(w, dto.ApiErrBadJSON, http.StatusBadRequest)
+		l.apiErrToResponse(w, dto.APIErrBadJSON, http.StatusBadRequest)
 
 		return
 	}
@@ -224,7 +224,7 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, r
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
-		l.log.Info(fmt.Sprintf("ошибка при проверке, отслеживает пользователь %d ссылку %s",
+		l.log.Error(fmt.Sprintf("ошибка в БД при проверке отслеживает пользователь %d ссылку %s",
 			userID, removeLink.Link),
 			"err", err)
 
@@ -232,7 +232,7 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, r
 	}
 
 	if !userTrackLink {
-		l.apiErrToResponse(w, dto.ApiErrNotTrackLink, http.StatusNotFound)
+		l.apiErrToResponse(w, dto.APIErrNotTrackLink, http.StatusNotFound)
 
 		return
 	}
@@ -241,8 +241,8 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, r
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-
-		l.log.Info("ошибка при удалении ссылки", "err", err)
+		l.log.Error(fmt.Sprintf("ошибка в БД при удалении у пользователя %d ссылки %s", userID, removeLink.Link),
+			"err", err)
 
 		return
 	}
@@ -254,10 +254,8 @@ func (l *LinkHandler) DeleteMethodHandler(w http.ResponseWriter, userID int64, r
 		URL: removeLink.Link,
 	}
 
-	err = json.NewEncoder(w).Encode(linkResponse)
-
-	if err != nil {
-		l.log.Info("Ошибка при формировании json ответа", "err", err)
+	if err = json.NewEncoder(w).Encode(linkResponse); err != nil {
+		l.log.Error("Ошибка при формировании JSON ответа, подтверждающего удаление ссылки", "err", err)
 	}
 }
 
@@ -268,6 +266,6 @@ func (l *LinkHandler) apiErrToResponse(w http.ResponseWriter, errAPI *dto.APIErr
 	err := json.NewEncoder(w).Encode(errAPI)
 
 	if err != nil {
-		l.log.Debug("ошибка при формировании JSON APIErrResponse", "err", err.Error())
+		l.log.Error("ошибка при формировании JSON APIErrResponse", "err", err.Error())
 	}
 }

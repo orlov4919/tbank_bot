@@ -40,12 +40,6 @@ const (
 	stackoverflowHost = "stackoverflow.com"
 )
 
-type LinkUpdates = scrapper.LinkUpdates
-type LinkUpdate = scrapper.LinkUpdate
-type Link = scrapper.Link
-type StackAnswers = scrapper.StackAnswers
-type StackComments = scrapper.StackComments
-
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -70,7 +64,7 @@ func NewClient(host string, client HTTPClient, strCleaner func(string) string) *
 	}
 }
 
-func (stack *StackClient) CanTrack(link Link) bool {
+func (stack *StackClient) CanTrack(link scrapper.Link) bool {
 	parsedLink, err := url.Parse(link)
 
 	if err != nil {
@@ -124,7 +118,7 @@ func (stack *StackClient) StaticLinkCheck(parsedLink *url.URL, pathArgs []string
 	return true
 }
 
-func (stack *StackClient) LinkUpdates(link Link, since time.Time) (LinkUpdates, error) {
+func (stack *StackClient) LinkUpdates(link scrapper.Link, since time.Time) (scrapper.LinkUpdates, error) {
 	var questionTitle string
 
 	since = since.Add(-time.Hour * 4)
@@ -153,26 +147,26 @@ func (stack *StackClient) LinkUpdates(link Link, since time.Time) (LinkUpdates, 
 		return nil, fmt.Errorf("ошибка при получении новых комментариев: %w", err)
 	}
 
-	if len(newAnswers.Answers) == 0 && len(newComments.Comments) != 0 {
+	if len(newAnswers.Items) == 0 && len(newComments.Items) != 0 {
 		questionTitle, err = stack.getQuestionTitle(pathArgs)
 	}
 
-	if len(newAnswers.Answers) != 0 {
-		questionTitle = newAnswers.Answers[0].Title
+	if len(newAnswers.Items) != 0 {
+		questionTitle = newAnswers.Items[0].Title
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	return stack.mergeUpdates(newAnswers, newComments, questionTitle), nil
+	return stack.mergeUpdate(newAnswers, newComments, questionTitle), nil
 }
 
-func (stack *StackClient) mergeUpdates(newAnswers *StackAnswers, newComments *StackComments, title string) LinkUpdates {
-	linkUpdates := make(LinkUpdates, 0, len(newAnswers.Answers)+len(newComments.Comments))
+func (stack *StackClient) mergeUpdate(answers *scrapper.StackAnswers, comments *scrapper.StackComments, title string) scrapper.LinkUpdates {
+	linkUpdates := make(scrapper.LinkUpdates, 0, len(answers.Items)+len(comments.Items))
 
-	for _, update := range newAnswers.Answers {
-		linkUpdates = append(linkUpdates, &LinkUpdate{
+	for _, update := range answers.Items {
+		linkUpdates = append(linkUpdates, &scrapper.LinkUpdate{
 			Header:     title,
 			UserName:   update.Owner.UserName,
 			CreateTime: time.Unix(update.UpdateTime, 0).Format("15:04:05 02-01-2006"),
@@ -180,8 +174,8 @@ func (stack *StackClient) mergeUpdates(newAnswers *StackAnswers, newComments *St
 		})
 	}
 
-	for _, update := range newComments.Comments {
-		linkUpdates = append(linkUpdates, &LinkUpdate{
+	for _, update := range comments.Items {
+		linkUpdates = append(linkUpdates, &scrapper.LinkUpdate{
 			Header:     title,
 			UserName:   update.Owner.UserName,
 			CreateTime: time.Unix(update.UpdateTime, 0).Format("15:04:05 02-01-2006"),
@@ -212,7 +206,7 @@ func (stack *StackClient) NewUpdate(req *http.Request, update any) error {
 	return nil
 }
 
-func (stack *StackClient) NewAnswers(questionID string, since time.Time) (*StackAnswers, error) {
+func (stack *StackClient) NewAnswers(questionID string, since time.Time) (*scrapper.StackAnswers, error) {
 	q := url.Values{}
 
 	q.Add(site, stackoverflow)
@@ -221,15 +215,13 @@ func (stack *StackClient) NewAnswers(questionID string, since time.Time) (*Stack
 
 	reqURL := stack.requestURL(questionID, answers, q)
 
-	fmt.Println(reqURL.String())
-
 	req, err := http.NewRequest(http.MethodGet, reqURL.String(), http.NoBody)
 
 	if err != nil {
 		return nil, fmt.Errorf("в клиете %s при формировании запроса произошла ошибка: %w", clientName, err)
 	}
 
-	newAnswers := &StackAnswers{}
+	newAnswers := &scrapper.StackAnswers{}
 
 	if err = stack.NewUpdate(req, newAnswers); err != nil {
 		return nil, fmt.Errorf("ошибка при получении новых ответов: %w", err)
@@ -238,7 +230,7 @@ func (stack *StackClient) NewAnswers(questionID string, since time.Time) (*Stack
 	return newAnswers, nil
 }
 
-func (stack *StackClient) NewComments(questionID string, since time.Time) (*StackComments, error) {
+func (stack *StackClient) NewComments(questionID string, since time.Time) (*scrapper.StackComments, error) {
 	q := url.Values{}
 
 	q.Add(site, stackoverflow)
@@ -252,7 +244,7 @@ func (stack *StackClient) NewComments(questionID string, since time.Time) (*Stac
 		return nil, fmt.Errorf("в клиете %s при формировании запроса произошла ошибка: %w", clientName, err)
 	}
 
-	newComments := &StackComments{}
+	newComments := &scrapper.StackComments{}
 
 	if err = stack.NewUpdate(req, newComments); err != nil {
 		return nil, fmt.Errorf("ошибка при получении новых комментариев: %w", err)
@@ -280,13 +272,13 @@ func (stack *StackClient) getQuestionTitle(pathArgs []string) (string, error) {
 		return "", fmt.Errorf("в клиете %s при формировании запроса произошла ошибка: %w", clientName, err)
 	}
 
-	answers := &StackAnswers{}
+	answers := &scrapper.StackAnswers{}
 
 	if err = stack.NewUpdate(req, answers); err != nil {
 		return "", fmt.Errorf("ошибка при получении заголовка вопроса: %w", err)
 	}
 
-	return answers.Answers[0].Title, nil
+	return answers.Items[0].Title, nil
 }
 
 func (stack *StackClient) requestURL(questionID, update string, q url.Values) *url.URL {

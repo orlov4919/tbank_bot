@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
 	"linkTraccer/internal/infrastructure/database/sql/cleansql"
@@ -14,6 +13,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
@@ -33,9 +33,6 @@ const (
 	secondID          = 2
 	thirdID           = 3
 )
-
-type Link = scrapper.Link
-type User = scrapper.User
 
 func SetupContainer() (*postgres.PostgresContainer, error) {
 	postgresContainer, err := postgres.Run(context.Background(),
@@ -316,24 +313,24 @@ func TestUserStorage_UsersWhoTrackLink(t *testing.T) {
 	type TestCase struct {
 		name          string
 		linkID        scrapper.LinkID
-		expectedUsers []User
+		expectedUsers []scrapper.User
 	}
 
 	tests := []TestCase{
 		{
 			name:          "проверяем кто отслеживает githubLink",
 			linkID:        firstID,
-			expectedUsers: []User{firstID, secondID},
+			expectedUsers: []scrapper.User{firstID, secondID},
 		},
 		{
 			name:          "проверяем кто отслеживает stackoverflow",
 			linkID:        secondID,
-			expectedUsers: []User{secondID},
+			expectedUsers: []scrapper.User{secondID},
 		},
 		{
 			name:          "проверяем кто отслеживает не добавленную ссылку",
 			linkID:        3,
-			expectedUsers: []User{},
+			expectedUsers: []scrapper.User{},
 		},
 	}
 
@@ -377,17 +374,17 @@ func TestUserStorage_AllUserLinks(t *testing.T) {
 
 	type TestCase struct {
 		userID        int64
-		expectedLinks []Link
+		expectedLinks []scrapper.Link
 	}
 
 	tests := []TestCase{
 		{
 			userID:        secondID,
-			expectedLinks: []Link{stackoverflowLink, githubLink},
+			expectedLinks: []scrapper.Link{stackoverflowLink, githubLink},
 		},
 		{
 			userID:        firstID,
-			expectedLinks: []Link{githubLink},
+			expectedLinks: []scrapper.Link{githubLink},
 		},
 	}
 
@@ -427,7 +424,7 @@ func TestUserStorage_UserTrackLink(t *testing.T) {
 
 	type TestCase struct {
 		userID    int64
-		link      Link
+		link      scrapper.Link
 		trackLink bool
 	}
 
@@ -744,7 +741,7 @@ func TestUserStorage_DeleteUntrackedLinks(t *testing.T) {
 
 		err = pgxPool.QueryRow(context.Background(),
 			`SELECT link_url FROM links WHERE link_url = ($1)`, test.deletedLink).Scan(&link)
-		
+
 		if test.inLinks {
 			assert.Equal(t, test.deletedLink, link)
 			assert.NoError(t, err)

@@ -3,7 +3,6 @@ package cleansql
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
@@ -19,8 +18,6 @@ const (
 	linkCap  = 20
 )
 
-type Link = scrapper.Link
-type User = scrapper.User
 type LinkInfo = scrapper.LinkInfo
 type LinkID = scrapper.LinkID
 type Tag = scrapper.Tag
@@ -36,7 +33,7 @@ func NewStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) *UserStorage {
 
 // возможно в этой части кода нужно выделение отдельного соединения, для того что бы метод всегда выполнялся транзакционно
 
-func (u *UserStorage) TrackLink(ctx context.Context, userID User, link Link, addTime time.Time) error {
+func (u *UserStorage) TrackLink(ctx context.Context, userID scrapper.User, link scrapper.Link, addTime time.Time) error {
 	var linkID int64
 
 	conn := transactor.GetQuerier(ctx, u.db)
@@ -65,7 +62,7 @@ func (u *UserStorage) TrackLink(ctx context.Context, userID User, link Link, add
 	return nil
 }
 
-func (u *UserStorage) ChangeLastCheckTime(link Link, checkTime time.Time) error {
+func (u *UserStorage) ChangeLastCheckTime(link scrapper.Link, checkTime time.Time) error {
 	_, err := u.db.Exec(context.Background(), "UPDATE links SET last_update_check=($2) WHERE link_url = ($1)",
 		link, checkTime)
 
@@ -76,8 +73,8 @@ func (u *UserStorage) ChangeLastCheckTime(link Link, checkTime time.Time) error 
 	return nil
 }
 
-func (u *UserStorage) UsersWhoTrackLink(linkID LinkID) ([]User, error) {
-	var user User
+func (u *UserStorage) UsersWhoTrackLink(linkID LinkID) ([]scrapper.User, error) {
+	var user scrapper.User
 
 	rows, err := u.db.Query(context.Background(), "SELECT user_id FROM userlinks WHERE link_id = ($1) ", linkID)
 
@@ -85,7 +82,7 @@ func (u *UserStorage) UsersWhoTrackLink(linkID LinkID) ([]User, error) {
 		return nil, fmt.Errorf("ошибка при получении отслеживающих ссылку пользователей: %w", err)
 	}
 
-	users := make([]User, 0, usersCap)
+	users := make([]scrapper.User, 0, usersCap)
 
 	for rows.Next() {
 		if err = rows.Scan(&user); err != nil {
@@ -102,8 +99,8 @@ func (u *UserStorage) UsersWhoTrackLink(linkID LinkID) ([]User, error) {
 	return users, nil
 }
 
-func (u *UserStorage) AllUserLinks(userID User) ([]Link, error) {
-	var link Link
+func (u *UserStorage) AllUserLinks(userID scrapper.User) ([]scrapper.Link, error) {
+	var link scrapper.Link
 
 	rows, err := u.db.Query(context.Background(),
 		`SELECT link_url FROM links 
@@ -114,7 +111,7 @@ func (u *UserStorage) AllUserLinks(userID User) ([]Link, error) {
 		return nil, fmt.Errorf("ошибка при выполнении запроса на получение всех ссылок пользователя: %w", err)
 	}
 
-	links := make([]Link, 0, linkCap)
+	links := make([]scrapper.Link, 0, linkCap)
 
 	for rows.Next() {
 		if err = rows.Scan(&link); err != nil {
@@ -131,8 +128,8 @@ func (u *UserStorage) AllUserLinks(userID User) ([]Link, error) {
 	return links, nil
 }
 
-func (u *UserStorage) UserTrackLink(userID User, url Link) (bool, error) {
-	var link Link
+func (u *UserStorage) UserTrackLink(userID scrapper.User, url scrapper.Link) (bool, error) {
+	var link scrapper.Link
 
 	err := u.db.QueryRow(context.Background(),
 		`SELECT link_url FROM links JOIN userLinks ON links.link_id = userLinks.link_id
@@ -149,8 +146,8 @@ func (u *UserStorage) UserTrackLink(userID User, url Link) (bool, error) {
 	return true, nil
 }
 
-func (u *UserStorage) UserExist(userID User) (bool, error) {
-	var user User
+func (u *UserStorage) UserExist(userID scrapper.User) (bool, error) {
+	var user scrapper.User
 
 	err := u.db.QueryRow(context.Background(),
 		"SELECT user_id FROM users WHERE user_id = ($1)", userID).Scan(&user)
@@ -166,7 +163,7 @@ func (u *UserStorage) UserExist(userID User) (bool, error) {
 	return user == userID, nil
 }
 
-func (u *UserStorage) RegUser(userID User) error {
+func (u *UserStorage) RegUser(userID scrapper.User) error {
 	_, err := u.db.Exec(context.Background(),
 		"INSERT INTO users(user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", userID)
 
@@ -177,7 +174,7 @@ func (u *UserStorage) RegUser(userID User) error {
 	return nil
 }
 
-func (u *UserStorage) DeleteUser(ctx context.Context, user User) (err error) {
+func (u *UserStorage) DeleteUser(ctx context.Context, user scrapper.User) (err error) {
 	conn := transactor.GetQuerier(ctx, u.db)
 
 	if _, err = conn.Exec(context.Background(), "DELETE FROM userlinks WHERE user_id = ($1);", user); err != nil {
@@ -191,7 +188,7 @@ func (u *UserStorage) DeleteUser(ctx context.Context, user User) (err error) {
 	return nil
 }
 
-func (u *UserStorage) UntrackLink(user User, link Link) error {
+func (u *UserStorage) UntrackLink(user scrapper.User, link scrapper.Link) error {
 	_, err := u.db.Exec(context.Background(),
 		`DELETE FROM userlinks USING links 
              WHERE userlinks.link_id = links.link_id AND links.link_url = ($1) AND userlinks.user_id = ($2)`,
@@ -242,11 +239,6 @@ func (l *linkPaginator) LinksBatch() ([]*LinkInfo, error) {
              WHERE link_id > ($1) AND CURRENT_TIMESTAMP - last_update_check > '5 minutes' 
              ORDER BY link_id ASC LIMIT ($2);`, l.lastLinkID, l.limit)
 
-	if errors.Is(err, pgx.ErrNoRows) {
-		l.hasLinks = false
-		return []*LinkInfo{}, nil
-	}
-
 	if err != nil {
 		return nil, fmt.Errorf("ошика при выполнении запроса на получение пачки ссылок: %w", err)
 	}
@@ -269,11 +261,15 @@ func (l *linkPaginator) LinksBatch() ([]*LinkInfo, error) {
 		links = append(links, linkInfo)
 	}
 
+	l.lastLinkID = id
+
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("ошика при сканировании ссылок: %w", err)
 	}
 
-	l.lastLinkID = id
+	if len(links) == 0 {
+		l.hasLinks = false
+	}
 
 	return links, nil
 }

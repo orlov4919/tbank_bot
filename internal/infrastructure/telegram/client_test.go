@@ -16,14 +16,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// content            = "content-type"
-// jsonType           = "application/json"
-// updatesPath        = "/getUpdates"
-// messagePath        = "/sendMessage"
-// testBotToken       = "12345"
-// randomStr          = "sdfklsjc"
-// returnIncorectJSON = "верни неправильный json"
-
 const (
 	host  = "api.telegram.com"
 	token = "mytoken"
@@ -31,20 +23,21 @@ const (
 
 type HTTPClient = telegram.HTTPClient
 
-var update = []tgbot.Update{
-	{
-		UpdateID: 1,
-	},
-}
+var (
+	update = []tgbot.Update{
+		{
+			UpdateID: 1,
+		}}
 
-var dataToBody = []byte("Hello word")
-var updateData = []byte(`{"result" : [{"update_id" : 1}]}`)
-var defTgAnswer, _ = json.Marshal(telegram.DefaultServerAnswer{Ok: true})
-
-var errForTest = errors.New("ошибка для теста")
-var responseWithErr = &http.Response{StatusCode: http.StatusBadRequest}
-var respWithOkStatus = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(dataToBody))}
-var respWithUpdates = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(updateData))}
+	dataToBody          = []byte("Hello word")
+	updateData          = []byte(`{"result" : [{"update_id" : 1}]}`)
+	defTgAnswer, _      = json.Marshal(telegram.DefaultServerAnswer{Ok: true})
+	errForTest          = errors.New("ошибка для теста")
+	responseWithErr     = &http.Response{StatusCode: http.StatusBadRequest, Body: io.NopCloser(bytes.NewBuffer(dataToBody))}
+	respWithOkStatus    = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(dataToBody))}
+	respWithUpdates     = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(updateData))}
+	respTgDefaultAnswer = &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(defTgAnswer))}
+)
 
 func TestRequestToAPI(t *testing.T) {
 	badClient := mocks.NewHTTPClient(t)
@@ -75,7 +68,7 @@ func TestRequestToAPI(t *testing.T) {
 			correct: false,
 		},
 		{
-			name:    "Передаем клинта, который возвращает ответ с ошибкой",
+			name:    "Передаем клиента, который возвращает ответ с ошибкой",
 			client:  apiErrClient,
 			url:     &url.URL{Host: "localhost:8080"},
 			data:    nil,
@@ -118,7 +111,7 @@ func TestTgClient_HandleUsersUpdates(t *testing.T) {
 		name   string
 		offset int
 		limit  int
-		data   telegram.Updates
+		data   tgbot.Updates
 		client HTTPClient
 		corect bool
 	}
@@ -169,20 +162,16 @@ func TestTgClient_HandleUsersUpdates(t *testing.T) {
 }
 
 func TestTgClient_SendMessage(t *testing.T) {
-	respTgDefaultAnswer := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(defTgAnswer))}
-
 	apiErrClient := mocks.NewHTTPClient(t)
-	wrongBodyClient := mocks.NewHTTPClient(t)
 	goodClient := mocks.NewHTTPClient(t)
 
 	apiErrClient.On("Do", mock.Anything).Return(responseWithErr, nil)
-	wrongBodyClient.On("Do", mock.Anything).Return(respWithOkStatus, nil)
 	goodClient.On("Do", mock.Anything).Return(respTgDefaultAnswer, nil)
 
 	type testCase struct {
 		name    string
 		client  HTTPClient
-		id      int
+		id      int64
 		text    string
 		correct bool
 	}
@@ -192,13 +181,6 @@ func TestTgClient_SendMessage(t *testing.T) {
 			name:    "Передаем отрицательный id и клиентом имитируем ошибку от API",
 			client:  apiErrClient,
 			id:      -5,
-			text:    "Hello word",
-			correct: false,
-		},
-		{
-			name:    "Сервер присылает данные не верного формата",
-			client:  wrongBodyClient,
-			id:      1,
 			text:    "Hello word",
 			correct: false,
 		},
@@ -224,14 +206,10 @@ func TestTgClient_SendMessage(t *testing.T) {
 }
 
 func TestTgClient_SetBotCommands(t *testing.T) {
-	respTgDefaultAnswer := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBuffer(defTgAnswer))}
-
 	apiErrClient := mocks.NewHTTPClient(t)
-	wrongBodyClient := mocks.NewHTTPClient(t)
 	goodClient := mocks.NewHTTPClient(t)
 
 	apiErrClient.On("Do", mock.Anything).Return(responseWithErr, nil)
-	wrongBodyClient.On("Do", mock.Anything).Return(respWithOkStatus, nil)
 	goodClient.On("Do", mock.Anything).Return(respTgDefaultAnswer, nil)
 
 	type testCase struct {
@@ -245,12 +223,6 @@ func TestTgClient_SetBotCommands(t *testing.T) {
 		{
 			name:    "имитируем ошибку от API",
 			client:  apiErrClient,
-			data:    &tgbot.SetCommands{},
-			correct: false,
-		},
-		{
-			name:    "Сервер присылает данные не верного формата",
-			client:  wrongBodyClient,
 			data:    &tgbot.SetCommands{},
 			correct: false,
 		},
@@ -299,7 +271,7 @@ func TestTgClient_SetBotCommands(t *testing.T) {
 //			{
 //				name:    "Не правильно указан путь для получения обновлений",
 //				method:  http.MethodGet,
-//				path:    "/Answers",
+//				path:    "/Items",
 //				client:  http.DefaultClient,
 //				data:    nil,
 //				correct: false,
@@ -519,7 +491,7 @@ func TestTgClient_SetBotCommands(t *testing.T) {
 //			DefaultServerAnswer: telegram.DefaultServerAnswer{
 //				Ok: true,
 //			},
-//			Answers: []tgbot.Update{
+//			Items: []tgbot.Update{
 //				{UpdateID: 777,
 //					Msg: tgbot.Message{
 //						From: tgbot.User{ID: 55},

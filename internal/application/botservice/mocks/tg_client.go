@@ -81,7 +81,7 @@ func (_c *TgClient_HandleUsersUpdates_Call) RunAndReturn(run func(int, int) ([]t
 }
 
 // SendMessage provides a mock function with given fields: userID, text
-func (_m *TgClient) SendMessage(userID int, text string) error {
+func (_m *TgClient) SendMessage(userID int64, text string) error {
 	ret := _m.Called(userID, text)
 
 	if len(ret) == 0 {
@@ -89,7 +89,7 @@ func (_m *TgClient) SendMessage(userID int, text string) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, string) error); ok {
+	if rf, ok := ret.Get(0).(func(int64, string) error); ok {
 		r0 = rf(userID, text)
 	} else {
 		r0 = ret.Error(0)
@@ -104,15 +104,15 @@ type TgClient_SendMessage_Call struct {
 }
 
 // SendMessage is a helper method to define mock.On call
-//   - userID int
+//   - userID int64
 //   - text string
 func (_e *TgClient_Expecter) SendMessage(userID interface{}, text interface{}) *TgClient_SendMessage_Call {
 	return &TgClient_SendMessage_Call{Call: _e.mock.On("SendMessage", userID, text)}
 }
 
-func (_c *TgClient_SendMessage_Call) Run(run func(userID int, text string)) *TgClient_SendMessage_Call {
+func (_c *TgClient_SendMessage_Call) Run(run func(userID int64, text string)) *TgClient_SendMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int), args[1].(string))
+		run(args[0].(int64), args[1].(string))
 	})
 	return _c
 }
@@ -122,7 +122,7 @@ func (_c *TgClient_SendMessage_Call) Return(_a0 error) *TgClient_SendMessage_Cal
 	return _c
 }
 
-func (_c *TgClient_SendMessage_Call) RunAndReturn(run func(int, string) error) *TgClient_SendMessage_Call {
+func (_c *TgClient_SendMessage_Call) RunAndReturn(run func(int64, string) error) *TgClient_SendMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }

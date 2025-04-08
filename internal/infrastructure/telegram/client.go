@@ -12,8 +12,6 @@ import (
 	"strconv"
 )
 
-type Updates = tgbot.Updates
-
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -41,7 +39,7 @@ func NewClient(client HTTPClient, token, host string) *TgClient {
 	}
 }
 
-func (bot *TgClient) HandleUsersUpdates(offset, limit int) (Updates, error) {
+func (bot *TgClient) HandleUsersUpdates(offset, limit int) (tgbot.Updates, error) {
 	if limit < 0 {
 		return nil, NewErrNegativeLimit(limit)
 	}
@@ -57,13 +55,13 @@ func (bot *TgClient) HandleUsersUpdates(offset, limit int) (Updates, error) {
 	jsonData, err := RequestToAPI(bot.client, requestURL, http.MethodGet, nil)
 
 	if err != nil {
-		return nil, fmt.Errorf("при запросе getUpdates произошла ошибка: %w", err)
+		return nil, fmt.Errorf("при запросе getUpdates к tg API произошла ошибка: %w", err)
 	}
 
 	response := &GetUpdateAnswer{}
 
 	if err := json.Unmarshal(jsonData, response); err != nil {
-		return nil, fmt.Errorf("при десериализации обновлений произошла ошибка: %w", err)
+		return nil, fmt.Errorf("при десериализации обновлений от сервера телеграм произошла ошибка: %w", err)
 	}
 
 	return response.Updates, nil
@@ -80,19 +78,13 @@ func (bot *TgClient) SendMessage(userID int64, text string) error {
 	jsonData, err := json.Marshal(data)
 
 	if err != nil {
-		return fmt.Errorf("при маршалинге сообщения возникла ошибка: %w", err)
+		return fmt.Errorf("при маршалинге сообщения, для отправки на сервер телеграмм возникла ошибка: %w", err)
 	}
 
-	responseData, err := RequestToAPI(bot.client, sendMessageURL, http.MethodPost, bytes.NewBuffer(jsonData))
+	_, err = RequestToAPI(bot.client, sendMessageURL, http.MethodPost, bytes.NewBuffer(jsonData))
 
 	if err != nil {
-		return fmt.Errorf("при отправке запроса sendMessage произошла ошибка: %w", err)
-	}
-
-	serverAnswer := &DefaultServerAnswer{}
-
-	if err := json.Unmarshal(responseData, serverAnswer); err != nil {
-		return fmt.Errorf("при декодинге сообщения сервера возникла ошибка: %w", err)
+		return fmt.Errorf("при отправке сообщения на сервер телеграмм произошла ошибка: %w", err)
 	}
 
 	return nil
@@ -100,23 +92,16 @@ func (bot *TgClient) SendMessage(userID int64, text string) error {
 
 func (bot *TgClient) SetBotCommands(data *tgbot.SetCommands) error {
 	setCommandsURL := bot.makeRequestURL(setMyCommands, nil)
-
 	jsonData, err := json.Marshal(data)
 
 	if err != nil {
-		return fmt.Errorf("при маршалинге команд возникла ошибка: %w", err)
+		return fmt.Errorf("при маршалинге команд поддерживаемых ботом возникла ошибка: %w", err)
 	}
 
-	responseData, err := RequestToAPI(bot.client, setCommandsURL, http.MethodPost, bytes.NewBuffer(jsonData))
+	_, err = RequestToAPI(bot.client, setCommandsURL, http.MethodPost, bytes.NewBuffer(jsonData))
 
 	if err != nil {
-		return fmt.Errorf("при выполнении setCommands произошла ошибка: %w", err)
-	}
-
-	serverAnswer := &DefaultServerAnswer{}
-
-	if err := json.Unmarshal(responseData, serverAnswer); err != nil {
-		return fmt.Errorf("при декодинге сообщения сервера возникла ошибка: %w", err)
+		return fmt.Errorf("запрос на создание меню с командами закончился ошибкой: %w", err)
 	}
 
 	return nil
@@ -139,11 +124,11 @@ func RequestToAPI(client HTTPClient, url *url.URL, httpMethod string, data io.Re
 		return nil, fmt.Errorf("запрос к botAPI закончился ошибкой: %w", err)
 	}
 
+	defer r.Body.Close()
+
 	if r.StatusCode != http.StatusOK {
 		return nil, NewErrBotAPI(r.StatusCode)
 	}
-
-	defer r.Body.Close()
 
 	return io.ReadAll(r.Body)
 }

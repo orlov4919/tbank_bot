@@ -22,7 +22,7 @@ func (_m *CtxStorage) EXPECT() *CtxStorage_Expecter {
 }
 
 // AddFilters provides a mock function with given fields: id, filters
-func (_m *CtxStorage) AddFilters(id int, filters []string) error {
+func (_m *CtxStorage) AddFilters(id int64, filters []string) error {
 	ret := _m.Called(id, filters)
 
 	if len(ret) == 0 {
@@ -30,7 +30,7 @@ func (_m *CtxStorage) AddFilters(id int, filters []string) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, []string) error); ok {
+	if rf, ok := ret.Get(0).(func(int64, []string) error); ok {
 		r0 = rf(id, filters)
 	} else {
 		r0 = ret.Error(0)
@@ -45,15 +45,15 @@ type CtxStorage_AddFilters_Call struct {
 }
 
 // AddFilters is a helper method to define mock.On call
-//   - id int
+//   - id int64
 //   - filters []string
 func (_e *CtxStorage_Expecter) AddFilters(id interface{}, filters interface{}) *CtxStorage_AddFilters_Call {
 	return &CtxStorage_AddFilters_Call{Call: _e.mock.On("AddFilters", id, filters)}
 }
 
-func (_c *CtxStorage_AddFilters_Call) Run(run func(id int, filters []string)) *CtxStorage_AddFilters_Call {
+func (_c *CtxStorage_AddFilters_Call) Run(run func(id int64, filters []string)) *CtxStorage_AddFilters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int), args[1].([]string))
+		run(args[0].(int64), args[1].([]string))
 	})
 	return _c
 }
@@ -63,13 +63,13 @@ func (_c *CtxStorage_AddFilters_Call) Return(_a0 error) *CtxStorage_AddFilters_C
 	return _c
 }
 
-func (_c *CtxStorage_AddFilters_Call) RunAndReturn(run func(int, []string) error) *CtxStorage_AddFilters_Call {
+func (_c *CtxStorage_AddFilters_Call) RunAndReturn(run func(int64, []string) error) *CtxStorage_AddFilters_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddTags provides a mock function with given fields: id, tags
-func (_m *CtxStorage) AddTags(id int, tags []string) error {
+func (_m *CtxStorage) AddTags(id int64, tags []string) error {
 	ret := _m.Called(id, tags)
 
 	if len(ret) == 0 {
@@ -77,7 +77,7 @@ func (_m *CtxStorage) AddTags(id int, tags []string) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, []string) error); ok {
+	if rf, ok := ret.Get(0).(func(int64, []string) error); ok {
 		r0 = rf(id, tags)
 	} else {
 		r0 = ret.Error(0)
@@ -92,15 +92,15 @@ type CtxStorage_AddTags_Call struct {
 }
 
 // AddTags is a helper method to define mock.On call
-//   - id int
+//   - id int64
 //   - tags []string
 func (_e *CtxStorage_Expecter) AddTags(id interface{}, tags interface{}) *CtxStorage_AddTags_Call {
 	return &CtxStorage_AddTags_Call{Call: _e.mock.On("AddTags", id, tags)}
 }
 
-func (_c *CtxStorage_AddTags_Call) Run(run func(id int, tags []string)) *CtxStorage_AddTags_Call {
+func (_c *CtxStorage_AddTags_Call) Run(run func(id int64, tags []string)) *CtxStorage_AddTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int), args[1].([]string))
+		run(args[0].(int64), args[1].([]string))
 	})
 	return _c
 }
@@ -110,13 +110,13 @@ func (_c *CtxStorage_AddTags_Call) Return(_a0 error) *CtxStorage_AddTags_Call {
 	return _c
 }
 
-func (_c *CtxStorage_AddTags_Call) RunAndReturn(run func(int, []string) error) *CtxStorage_AddTags_Call {
+func (_c *CtxStorage_AddTags_Call) RunAndReturn(run func(int64, []string) error) *CtxStorage_AddTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddURL provides a mock function with given fields: id, url
-func (_m *CtxStorage) AddURL(id int, url string) error {
+func (_m *CtxStorage) AddURL(id int64, url string) error {
 	ret := _m.Called(id, url)
 
 	if len(ret) == 0 {
@@ -124,7 +124,7 @@ func (_m *CtxStorage) AddURL(id int, url string) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, string) error); ok {
+	if rf, ok := ret.Get(0).(func(int64, string) error); ok {
 		r0 = rf(id, url)
 	} else {
 		r0 = ret.Error(0)
@@ -139,15 +139,15 @@ type CtxStorage_AddURL_Call struct {
 }
 
 // AddURL is a helper method to define mock.On call
-//   - id int
+//   - id int64
 //   - url string
 func (_e *CtxStorage_Expecter) AddURL(id interface{}, url interface{}) *CtxStorage_AddURL_Call {
 	return &CtxStorage_AddURL_Call{Call: _e.mock.On("AddURL", id, url)}
 }
 
-func (_c *CtxStorage_AddURL_Call) Run(run func(id int, url string)) *CtxStorage_AddURL_Call {
+func (_c *CtxStorage_AddURL_Call) Run(run func(id int64, url string)) *CtxStorage_AddURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int), args[1].(string))
+		run(args[0].(int64), args[1].(string))
 	})
 	return _c
 }
@@ -157,13 +157,13 @@ func (_c *CtxStorage_AddURL_Call) Return(_a0 error) *CtxStorage_AddURL_Call {
 	return _c
 }
 
-func (_c *CtxStorage_AddURL_Call) RunAndReturn(run func(int, string) error) *CtxStorage_AddURL_Call {
+func (_c *CtxStorage_AddURL_Call) RunAndReturn(run func(int64, string) error) *CtxStorage_AddURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RegUser provides a mock function with given fields: id
-func (_m *CtxStorage) RegUser(id int) error {
+func (_m *CtxStorage) RegUser(id int64) error {
 	ret := _m.Called(id)
 
 	if len(ret) == 0 {
@@ -171,7 +171,7 @@ func (_m *CtxStorage) RegUser(id int) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int) error); ok {
+	if rf, ok := ret.Get(0).(func(int64) error); ok {
 		r0 = rf(id)
 	} else {
 		r0 = ret.Error(0)
@@ -186,14 +186,14 @@ type CtxStorage_RegUser_Call struct {
 }
 
 // RegUser is a helper method to define mock.On call
-//   - id int
+//   - id int64
 func (_e *CtxStorage_Expecter) RegUser(id interface{}) *CtxStorage_RegUser_Call {
 	return &CtxStorage_RegUser_Call{Call: _e.mock.On("RegUser", id)}
 }
 
-func (_c *CtxStorage_RegUser_Call) Run(run func(id int)) *CtxStorage_RegUser_Call {
+func (_c *CtxStorage_RegUser_Call) Run(run func(id int64)) *CtxStorage_RegUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int))
+		run(args[0].(int64))
 	})
 	return _c
 }
@@ -203,13 +203,13 @@ func (_c *CtxStorage_RegUser_Call) Return(_a0 error) *CtxStorage_RegUser_Call {
 	return _c
 }
 
-func (_c *CtxStorage_RegUser_Call) RunAndReturn(run func(int) error) *CtxStorage_RegUser_Call {
+func (_c *CtxStorage_RegUser_Call) RunAndReturn(run func(int64) error) *CtxStorage_RegUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ResetCtx provides a mock function with given fields: id
-func (_m *CtxStorage) ResetCtx(id int) error {
+func (_m *CtxStorage) ResetCtx(id int64) error {
 	ret := _m.Called(id)
 
 	if len(ret) == 0 {
@@ -217,7 +217,7 @@ func (_m *CtxStorage) ResetCtx(id int) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int) error); ok {
+	if rf, ok := ret.Get(0).(func(int64) error); ok {
 		r0 = rf(id)
 	} else {
 		r0 = ret.Error(0)
@@ -232,14 +232,14 @@ type CtxStorage_ResetCtx_Call struct {
 }
 
 // ResetCtx is a helper method to define mock.On call
-//   - id int
+//   - id int64
 func (_e *CtxStorage_Expecter) ResetCtx(id interface{}) *CtxStorage_ResetCtx_Call {
 	return &CtxStorage_ResetCtx_Call{Call: _e.mock.On("ResetCtx", id)}
 }
 
-func (_c *CtxStorage_ResetCtx_Call) Run(run func(id int)) *CtxStorage_ResetCtx_Call {
+func (_c *CtxStorage_ResetCtx_Call) Run(run func(id int64)) *CtxStorage_ResetCtx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int))
+		run(args[0].(int64))
 	})
 	return _c
 }
@@ -249,13 +249,13 @@ func (_c *CtxStorage_ResetCtx_Call) Return(_a0 error) *CtxStorage_ResetCtx_Call 
 	return _c
 }
 
-func (_c *CtxStorage_ResetCtx_Call) RunAndReturn(run func(int) error) *CtxStorage_ResetCtx_Call {
+func (_c *CtxStorage_ResetCtx_Call) RunAndReturn(run func(int64) error) *CtxStorage_ResetCtx_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UserContext provides a mock function with given fields: id
-func (_m *CtxStorage) UserContext(id int) (*tgbot.ContextData, error) {
+func (_m *CtxStorage) UserContext(id int64) (*tgbot.ContextData, error) {
 	ret := _m.Called(id)
 
 	if len(ret) == 0 {
@@ -264,10 +264,10 @@ func (_m *CtxStorage) UserContext(id int) (*tgbot.ContextData, error) {
 
 	var r0 *tgbot.ContextData
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) (*tgbot.ContextData, error)); ok {
+	if rf, ok := ret.Get(0).(func(int64) (*tgbot.ContextData, error)); ok {
 		return rf(id)
 	}
-	if rf, ok := ret.Get(0).(func(int) *tgbot.ContextData); ok {
+	if rf, ok := ret.Get(0).(func(int64) *tgbot.ContextData); ok {
 		r0 = rf(id)
 	} else {
 		if ret.Get(0) != nil {
@@ -275,7 +275,7 @@ func (_m *CtxStorage) UserContext(id int) (*tgbot.ContextData, error) {
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(int) error); ok {
+	if rf, ok := ret.Get(1).(func(int64) error); ok {
 		r1 = rf(id)
 	} else {
 		r1 = ret.Error(1)
@@ -290,14 +290,14 @@ type CtxStorage_UserContext_Call struct {
 }
 
 // UserContext is a helper method to define mock.On call
-//   - id int
+//   - id int64
 func (_e *CtxStorage_Expecter) UserContext(id interface{}) *CtxStorage_UserContext_Call {
 	return &CtxStorage_UserContext_Call{Call: _e.mock.On("UserContext", id)}
 }
 
-func (_c *CtxStorage_UserContext_Call) Run(run func(id int)) *CtxStorage_UserContext_Call {
+func (_c *CtxStorage_UserContext_Call) Run(run func(id int64)) *CtxStorage_UserContext_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int))
+		run(args[0].(int64))
 	})
 	return _c
 }
@@ -307,7 +307,7 @@ func (_c *CtxStorage_UserContext_Call) Return(_a0 *tgbot.ContextData, _a1 error)
 	return _c
 }
 
-func (_c *CtxStorage_UserContext_Call) RunAndReturn(run func(int) (*tgbot.ContextData, error)) *CtxStorage_UserContext_Call {
+func (_c *CtxStorage_UserContext_Call) RunAndReturn(run func(int64) (*tgbot.ContextData, error)) *CtxStorage_UserContext_Call {
 	_c.Call.Return(run)
 	return _c
 }

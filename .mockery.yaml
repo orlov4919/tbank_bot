@@ -22,4 +22,8 @@ packages:
       Transactor:
       UserRepo:
       SiteClient:
+  linkTraccer/internal/application/scrapper/notifiers/tgnotifier:
+    config:
+      dir: mocks
+    interfaces:
       BotClient:

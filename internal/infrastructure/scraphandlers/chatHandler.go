@@ -37,13 +37,13 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 	defer r.Body.Close()
 
 	if err != nil {
-		c.apiErrToResponse(w, dto.ApiErrIDNotNum, http.StatusBadRequest)
+		c.apiErrToResponse(w, dto.APIErrIDNotNum, http.StatusBadRequest)
 
 		return
 	}
 
 	if userID < 0 {
-		c.apiErrToResponse(w, dto.ApiErrNegativeID, http.StatusBadRequest)
+		c.apiErrToResponse(w, dto.APIErrNegativeID, http.StatusBadRequest)
 
 		return
 	}
@@ -53,7 +53,7 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
-		c.log.Info(
+		c.log.Error(
 			fmt.Sprintf("обработка запроса %s закончилась ошибкой, при проверке пользователя в БД", r.URL.Path),
 			"err", err.Error())
 
@@ -74,7 +74,7 @@ func (c *ChatHandler) HandleChatChanges(w http.ResponseWriter, r *http.Request) 
 
 func (c *ChatHandler) PostHandler(w http.ResponseWriter, userID int64, userExist bool) {
 	if userExist {
-		c.apiErrToResponse(w, dto.ApiErrUserRegistered, http.StatusBadRequest)
+		c.apiErrToResponse(w, dto.APIErrUserRegistered, http.StatusBadRequest)
 
 		return
 	}
@@ -83,7 +83,7 @@ func (c *ChatHandler) PostHandler(w http.ResponseWriter, userID int64, userExist
 		w.Header().Set(contentType, jsonType)
 		w.WriteHeader(http.StatusInternalServerError)
 
-		c.log.Info("ошибка при регистрации пользователя", "err", err.Error())
+		c.log.Error("ошибка в БД при регистрации пользователя", "err", err.Error())
 
 		return
 	}
@@ -93,7 +93,7 @@ func (c *ChatHandler) PostHandler(w http.ResponseWriter, userID int64, userExist
 
 func (c *ChatHandler) DeleteHandler(w http.ResponseWriter, userID int64, userExist bool) {
 	if !userExist {
-		c.apiErrToResponse(w, dto.ApiErrUserNotRegistered, http.StatusNotFound)
+		c.apiErrToResponse(w, dto.APIErrUserNotRegistered, http.StatusNotFound)
 
 		return
 	}
@@ -109,7 +109,7 @@ func (c *ChatHandler) DeleteHandler(w http.ResponseWriter, userID int64, userExi
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 
-		c.log.Info("ошибка при регистрации пользователя", "err", err.Error())
+		c.log.Error("ошибка в БД при удалении пользователя", "err", err.Error())
 
 		return
 	}
@@ -124,6 +124,6 @@ func (c *ChatHandler) apiErrToResponse(w http.ResponseWriter, errAPI *dto.APIErr
 	err := json.NewEncoder(w).Encode(errAPI)
 
 	if err != nil {
-		c.log.Debug("ошибка при формировании JSON APIErrResponse", "err", err.Error())
+		c.log.Error("ошибка при формировании JSON APIErrResponse", "err", err.Error())
 	}
 }

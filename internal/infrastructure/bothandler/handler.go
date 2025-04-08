@@ -36,7 +36,7 @@ func (u *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 	bodyData, err := io.ReadAll(r.Body)
 
 	if err != nil {
-		u.APIErrToResponse(w, dto.ApiErrCantReadBody, http.StatusBadRequest)
+		u.APIErrToResponse(w, dto.APIErrCantReadBody, http.StatusBadRequest)
 
 		return
 	}
@@ -46,7 +46,7 @@ func (u *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 	linkUpdate := &dto.LinkUpdate{}
 
 	if err = json.Unmarshal(bodyData, linkUpdate); err != nil {
-		u.APIErrToResponse(w, dto.ApiErrBadJSON, http.StatusBadRequest)
+		u.APIErrToResponse(w, dto.APIErrBadJSON, http.StatusBadRequest)
 
 		return
 	}

@@ -166,7 +166,7 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 			reqData:        []byte(wrongStr),
 			responseAPIErr: true,
 			responseLink:   false,
-			expectedBody:   dto.ApiErrBadJSON,
+			expectedBody:   dto.APIErrBadJSON,
 		},
 		{
 			name:           "пытаемся добавить не поддерживаемую ссылку",
@@ -176,7 +176,7 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 			reqData:        addWrongLink,
 			responseAPIErr: true,
 			responseLink:   false,
-			expectedBody:   dto.ApiErrBadLink,
+			expectedBody:   dto.APIErrBadLink,
 		},
 		{
 			name:           "ошибка при проверке отслеживания ссылки",
@@ -196,7 +196,7 @@ func TestLinkHandler_PostMethodHandler(t *testing.T) {
 			reqData:        addGoodLink,
 			responseAPIErr: true,
 			responseLink:   false,
-			expectedBody:   dto.ApiErrDuplicateLink,
+			expectedBody:   dto.APIErrDuplicateLink,
 		},
 		{
 			name:           "ошибка при добавлении новой ссылки в БД",
@@ -299,7 +299,7 @@ func TestLinkHandler_DeleteMethodHandler(t *testing.T) {
 			reqData:        []byte(wrongStr),
 			responseAPIErr: true,
 			responseLink:   false,
-			expectedBody:   dto.ApiErrBadJSON,
+			expectedBody:   dto.APIErrBadJSON,
 		},
 		{
 			name:           "ошибка при проверке отслеживания ссылки",
@@ -319,7 +319,7 @@ func TestLinkHandler_DeleteMethodHandler(t *testing.T) {
 			reqData:        removeGoodLink,
 			responseAPIErr: true,
 			responseLink:   false,
-			expectedBody:   dto.ApiErrNotTrackLink,
+			expectedBody:   dto.APIErrNotTrackLink,
 		},
 		{
 			name:           "ошибка при удалении ссылки пользователя",
@@ -404,7 +404,7 @@ func TestLinkHandler_HandleLinksChanges(t *testing.T) {
 				Header: map[string][]string{"Tg-Chat-Id": {idNotInt}},
 			},
 			httpStatus:   http.StatusBadRequest,
-			responseBody: dto.ApiErrIDNotNum,
+			responseBody: dto.APIErrIDNotNum,
 		},
 		{
 			name:     "id пользователя отрицательное число",
@@ -414,7 +414,7 @@ func TestLinkHandler_HandleLinksChanges(t *testing.T) {
 				Header: map[string][]string{"Tg-Chat-Id": {negativeID}},
 			},
 			httpStatus:   http.StatusBadRequest,
-			responseBody: dto.ApiErrNegativeID,
+			responseBody: dto.APIErrNegativeID,
 		},
 		{
 			name:     "id пользователя отрицательное число",
@@ -434,7 +434,7 @@ func TestLinkHandler_HandleLinksChanges(t *testing.T) {
 				Header: map[string][]string{"Tg-Chat-Id": {goodID}},
 			},
 			httpStatus:   http.StatusBadRequest,
-			responseBody: dto.ApiErrUserNotRegistered,
+			responseBody: dto.APIErrUserNotRegistered,
 		},
 		{
 			name:     "проверка не поддерживаемого метода",
@@ -467,7 +467,7 @@ func TestLinkHandler_HandleLinksChanges(t *testing.T) {
 				Method: http.MethodPost,
 			},
 			httpStatus:   http.StatusBadRequest,
-			responseBody: dto.ApiErrBadJSON,
+			responseBody: dto.APIErrBadJSON,
 		},
 		{
 			name:     "проверка вызова delete обработчика",
@@ -478,7 +478,7 @@ func TestLinkHandler_HandleLinksChanges(t *testing.T) {
 				Method: http.MethodPost,
 			},
 			httpStatus:   http.StatusBadRequest,
-			responseBody: dto.ApiErrBadJSON,
+			responseBody: dto.APIErrBadJSON,
 		},
 	}
 

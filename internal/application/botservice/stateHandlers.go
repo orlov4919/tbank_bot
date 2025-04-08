@@ -7,7 +7,6 @@ import (
 )
 
 func RegHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id ID, _ tgbot.EventType) error {
-
 	if err := ctxStore.RegUser(id); err != nil {
 		return fmt.Errorf("при регистрации в хранилище контекстной информации возникла ошибка: %w", err)
 	}
@@ -137,7 +136,7 @@ func CommandsHandler(client TgClient, scrap ScrapClient, _ CtxStorage, id ID, ev
 				return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", NoSavedLinks, err)
 			}
 		} else {
-			if err = client.SendMessage(id, strings.Join(links, "\n")); err != nil {
+			if err = client.SendMessage(id, formatLinksMsg(links)); err != nil {
 				return fmt.Errorf("при отправке ссылок произошла ошибка: %w", err)
 			}
 		}
@@ -156,4 +155,16 @@ func CommandsHandler(client TgClient, scrap ScrapClient, _ CtxStorage, id ID, ev
 	}
 
 	return nil
+}
+
+func formatLinksMsg(links []Link) string {
+	builder := strings.Builder{}
+
+	builder.WriteString("Список ваших ссылок:\n\n")
+
+	for ind, link := range links {
+		builder.WriteString(fmt.Sprintf("%d) %s", ind+1, link))
+	}
+
+	return builder.String()
 }

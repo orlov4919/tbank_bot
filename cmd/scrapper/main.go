@@ -3,10 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
-	"github.com/go-co-op/gocron"
-	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"linkTraccer/internal/application/scrapper/notifiers/tgnotifier"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/infrastructure/botclient"
@@ -22,6 +18,11 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
+	"github.com/go-co-op/gocron"
+	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -32,18 +33,21 @@ const (
 	maxCons          = 15
 )
 
+type UserRepo = scrapservice.UserRepo
+type Transactor = scrapservice.Transactor
+type SiteClient = scrapservice.SiteClient
+type Config = scrapconfig.Config
+
 func main() {
 	logLevel := new(slog.LevelVar)
 
 	logLevel.Set(slog.LevelInfo)
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
-
 	dbConfig, err := sql.NewConfig()
 
 	if err != nil {
 		logger.Error("ошибка при получении конфига БД", "err", err.Error())
-
 		return
 	}
 
@@ -51,25 +55,25 @@ func main() {
 
 	if err != nil {
 		logger.Error("ошибка инициализации пула соединений", "err", err.Error())
-
 		return
 	}
+
+	logger.Info("соединение с БД успешно установлено")
 
 	var userStore scrapservice.UserRepo
 
 	switch dbConfig.AccessType {
 	case "SQL":
-		cleanSqlStore := cleansql.NewStore(dbConfig, pgxPool)
+		cleanSQLStore := cleansql.NewStore(dbConfig, pgxPool)
 
-		userStore = cleanSqlStore
+		userStore = cleanSQLStore
 
 	case "ORM":
-		builderSqlStore := buildersql.NewStore(dbConfig, pgxPool)
+		builderSQLStore := buildersql.NewStore(dbConfig, pgxPool)
 
-		userStore = builderSqlStore
+		userStore = builderSQLStore
 	default:
 		logger.Error("ошибка конфигурации", "err", "переменная окружения AccessType должна быть SQL или ORM")
-
 		return
 	}
 
@@ -77,52 +81,31 @@ func main() {
 
 	if err != nil {
 		logger.Error("ошибка при получении конфига scrapper", "err", err.Error())
-
 		return
 	}
 
+	dbTransactor := transactor.New(pgxPool)
 	stackClient := stackoverflow.NewClient(stackOverflowAPI, &http.Client{Timeout: time.Second * 10},
 		stackoverflow.HTMLStrCleaner(maxPreviewLen))
-
 	gitClient := github.NewClient(gitHubAPI, config.GitHubAPIKey, &http.Client{Timeout: time.Second * 10})
-
 	tgBotClient := botclient.New(config.BotHost+config.BotPort, &http.Client{Timeout: time.Second * 10})
-
 	notifierService := tgnotifier.New(userStore, tgBotClient)
-
 	scrapper := scrapservice.New(userStore, notifierService, logger, stackClient, gitClient)
+	scheduler := gocron.NewScheduler(time.UTC)
 
-	s := gocron.NewScheduler(time.UTC)
-
-	_, err = s.Every(time.Minute).Do(scrapper.CheckLinksUpdates)
+	_, err = scheduler.Every(time.Minute).Do(scrapper.CheckLinksUpdates)
 
 	if err != nil {
 		logger.Error("ошибка при запуске планировщика с проверкой ссылок", "err", err.Error())
+		return
 	}
 
-	s.StartAsync()
+	scheduler.StartAsync()
 
-	r := mux.NewRouter()
+	logger.Info("планировщик с проверкой ссылок успешно запущен")
+	logger.Info("сервер успешно запущен")
 
-	transacter := transactor.New(pgxPool)
-
-	linksHandler := scraphandlers.NewLinkHandler(userStore, transacter, logger, stackClient, gitClient)
-	chatHandler := scraphandlers.NewChatHandler(userStore, transacter, logger)
-
-	r.HandleFunc("/tg-chat/{id}", chatHandler.HandleChatChanges).
-		Methods(http.MethodPost, http.MethodDelete)
-	r.HandleFunc("/links", linksHandler.HandleLinksChanges).
-		Methods(http.MethodGet, http.MethodPost, http.MethodDelete)
-
-	srv := &http.Server{
-		Addr:         config.ScrapperPort,
-		Handler:      r,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  30 * time.Second,
-	}
-
-	_ = srv.ListenAndServe()
+	initAndRunServer(userStore, dbTransactor, logger, config, gitClient, stackClient)
 }
 
 func initPgxPool(dbConfig *sql.DBConfig) (*pgxpool.Pool, error) {
@@ -147,23 +130,28 @@ func initPgxPool(dbConfig *sql.DBConfig) (*pgxpool.Pool, error) {
 	return pgxPool, nil
 }
 
-//func initUserStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) (scrapservice.UserRepo, error) {
-//	var userStore scrapservice.UserRepo
-//
-//	switch dbConfig.AccessType {
-//	case "SQL":
-//		cleanSqlStore := cleansql.NewStore(dbConfig, pgxPool)
-//
-//		userStore = cleanSqlStore
-//
-//	case "ORM":
-//		builderSqlStore := buildersql.NewStore(dbConfig, pgxPool)
-//
-//		userStore = builderSqlStore
-//	default:
-//		logger.Error("ошибка конфигурации", "err", "переменная окружения AccessType должна быть SQL или ORM")
-//
-//		return
-//	}
-//
-//}
+func initAndRunServer(userStore UserRepo, dbTransactor Transactor, log *slog.Logger, cfg *Config, siteClients ...SiteClient) {
+	r := mux.NewRouter()
+
+	linksHandler := scraphandlers.NewLinkHandler(userStore, dbTransactor, log, siteClients...)
+	chatHandler := scraphandlers.NewChatHandler(userStore, dbTransactor, log)
+
+	r.HandleFunc("/tg-chat/{id}", chatHandler.HandleChatChanges).
+		Methods(http.MethodPost, http.MethodDelete)
+	r.HandleFunc("/links", linksHandler.HandleLinksChanges).
+		Methods(http.MethodGet, http.MethodPost, http.MethodDelete)
+
+	srv := &http.Server{
+		Addr:         cfg.ScrapperPort,
+		Handler:      r,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  30 * time.Second,
+	}
+
+	err := srv.ListenAndServe()
+
+	if err != nil {
+		log.Error("ошибка при работе сервера", "err", err.Error())
+	}
+}

@@ -16,22 +16,16 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type HTTPClient = scrapclient.HTTPClient
-type ID = tgbot.ID
-type Link = tgbot.Link
-type ListLinksResponse = scrapper.ListLinksResponse
-type LinkResponse = scrapper.LinkResponse
-
 const (
-	host           = "localhost"
-	port           = ":8080"
-	randomStr      = "Hello word"
-	savedLink Link = "tbank.ru"
+	host                 = "localhost"
+	port                 = ":8080"
+	randomStr            = "Hello word"
+	savedLink tgbot.Link = "tbank.ru"
 )
 
-var links = &ListLinksResponse{
+var links = &scrapper.ListLinksResponse{
 	Size: 1,
-	Links: []LinkResponse{
+	Links: []scrapper.LinkResponse{
 		{
 			URL:     savedLink,
 			Tags:    []string{},
@@ -64,8 +58,8 @@ func TestScrapperClient_RegUser(t *testing.T) {
 
 	type testCase struct {
 		name    string
-		client  HTTPClient
-		id      ID
+		client  scrapclient.HTTPClient
+		id      tgbot.ID
 		correct bool
 	}
 
@@ -115,9 +109,9 @@ func TestScrapperClient_UserLinks(t *testing.T) {
 
 	type testCase struct {
 		name    string
-		client  HTTPClient
-		id      ID
-		links   []Link
+		client  scrapclient.HTTPClient
+		id      tgbot.ID
+		links   []tgbot.Link
 		correct bool
 	}
 
@@ -147,7 +141,7 @@ func TestScrapperClient_UserLinks(t *testing.T) {
 			name:    "тест без ошибок",
 			client:  goodClient,
 			id:      10,
-			links:   []Link{savedLink},
+			links:   []tgbot.Link{savedLink},
 			correct: true,
 		},
 	}
@@ -176,9 +170,9 @@ func TestScrapperClient_RemoveLink(t *testing.T) {
 
 	type testCase struct {
 		name    string
-		client  HTTPClient
-		link    Link
-		id      ID
+		client  scrapclient.HTTPClient
+		link    tgbot.Link
+		id      tgbot.ID
 		correct bool
 	}
 
@@ -228,9 +222,9 @@ func TestScrapperClient_AddLink(t *testing.T) {
 
 	type testCase struct {
 		name    string
-		client  HTTPClient
+		client  scrapclient.HTTPClient
 		data    *tgbot.ContextData
-		id      ID
+		id      tgbot.ID
 		correct bool
 	}
 

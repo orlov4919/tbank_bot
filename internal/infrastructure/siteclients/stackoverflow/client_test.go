@@ -227,7 +227,7 @@ func TestStackClient_NewUpdate(t *testing.T) {
 			update:  &scrapper.StackAnswers{},
 			correct: true,
 			expectedRes: &scrapper.StackAnswers{
-				Answers: []scrapper.StackAnswer{{Title: "hello"}},
+				Items: []scrapper.StackAnswer{{Title: "hello"}},
 			},
 		},
 	}
@@ -275,7 +275,7 @@ func TestStackClient_NewAnswers(t *testing.T) {
 			questionID: "1",
 			client:     clientWithOkStatus,
 			expectedRes: &scrapper.StackAnswers{
-				Answers: []scrapper.StackAnswer{{Title: "hello"}}},
+				Items: []scrapper.StackAnswer{{Title: "hello"}}},
 			correct: true,
 		},
 	}
@@ -315,7 +315,7 @@ func TestStackClient_NewComments(t *testing.T) {
 			name:        "Ошибка при получении обновлений",
 			questionID:  "1",
 			client:      clientWithErrStatus,
-			expectedRes: &stackoverflow.StackComments{},
+			expectedRes: &scrapper.StackComments{},
 			correct:     false,
 		},
 		{
@@ -323,7 +323,7 @@ func TestStackClient_NewComments(t *testing.T) {
 			questionID: "1",
 			client:     clientWithOkStatus,
 			expectedRes: &scrapper.StackComments{
-				Comments: []scrapper.StackComment{{Title: "hello"}}},
+				Items: []scrapper.StackComment{{Title: "hello"}}},
 			correct: true,
 		},
 	}

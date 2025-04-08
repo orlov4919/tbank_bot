@@ -51,7 +51,7 @@ func TestChatHandler_PostHandler(t *testing.T) {
 			userID:         1,
 			userExist:      true,
 			repo:           nil,
-			expectedBody:   dto.ApiErrUserRegistered,
+			expectedBody:   dto.APIErrUserRegistered,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
@@ -119,7 +119,7 @@ func TestChatHandler_DeleteHandler(t *testing.T) {
 			userID:         1,
 			userExist:      false,
 			repo:           nil,
-			expectedBody:   dto.ApiErrUserNotRegistered,
+			expectedBody:   dto.APIErrUserNotRegistered,
 			expectedStatus: http.StatusNotFound,
 		},
 		{
@@ -194,7 +194,7 @@ func TestChatHandler_HandleChatChanges(t *testing.T) {
 			repo:           nil,
 			httpMethod:     http.MethodPost,
 			expectedStatus: http.StatusBadRequest,
-			expectedBody:   dto.ApiErrIDNotNum,
+			expectedBody:   dto.APIErrIDNotNum,
 		},
 		{
 			name:           "передаем отрицательное id",
@@ -202,7 +202,7 @@ func TestChatHandler_HandleChatChanges(t *testing.T) {
 			repo:           nil,
 			httpMethod:     http.MethodPost,
 			expectedStatus: http.StatusBadRequest,
-			expectedBody:   dto.ApiErrNegativeID,
+			expectedBody:   dto.APIErrNegativeID,
 		},
 		{
 			name:           "ошибка в БД при проверке пользователя ",

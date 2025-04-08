@@ -40,7 +40,7 @@ func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 		{
 			name:         "некорректный json в запросе",
 			r:            &http.Request{Method: http.MethodPost, Body: io.NopCloser(bytes.NewBuffer(wrongJSON))},
-			responseBody: dto.ApiErrBadJSON,
+			responseBody: dto.APIErrBadJSON,
 			httpStatus:   http.StatusBadRequest,
 		},
 		{
@@ -71,7 +71,6 @@ func TestUpdateServer_HandleLinkUpdates(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Equal(t, test.responseBody, respBody)
-
 		} else {
 			assert.Empty(t, w.Body)
 		}

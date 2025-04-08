@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
 	"linkTraccer/internal/application/botservice"
 	"linkTraccer/internal/infrastructure/botconfig"
 	"linkTraccer/internal/infrastructure/bothandler"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/gorilla/mux"
 )
 
 const (

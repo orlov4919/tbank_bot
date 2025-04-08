@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/domain/scrapper"
 	"linkTraccer/internal/infrastructure/database/sql"
@@ -12,8 +11,8 @@ import (
 	"time"
 
 	"github.com/doug-martin/goqu/v9"
-	// диалект для постгреса.
-	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres" // диалект для постгреса
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,8 +21,6 @@ const (
 	linkCap  = 20
 )
 
-type Link = scrapper.Link
-type User = scrapper.User
 type LinkInfo = scrapper.LinkInfo
 type LinkID = scrapper.LinkID
 
@@ -43,7 +40,7 @@ func NewStore(dbConfig *sql.DBConfig, pgxPool *pgxpool.Pool) *UserStorage {
 	return &UserStorage{db: pgxPool, batchSize: dbConfig.BatchSize}
 }
 
-func (u *UserStorage) TrackLink(ctx context.Context, userID User, link Link, addTime time.Time) error {
+func (u *UserStorage) TrackLink(ctx context.Context, userID scrapper.User, link scrapper.Link, addTime time.Time) error {
 	var linkID int64
 
 	conn := transactor.GetQuerier(ctx, u.db)
@@ -84,7 +81,7 @@ func (u *UserStorage) TrackLink(ctx context.Context, userID User, link Link, add
 	return nil
 }
 
-func (u *UserStorage) ChangeLastCheckTime(link Link, checkTime time.Time) error {
+func (u *UserStorage) ChangeLastCheckTime(link scrapper.Link, checkTime time.Time) error {
 	sqlCmd, _, _ := goqu.Update("links").
 		Set(goqu.Record{"last_update_check": goqu.L("$2")}).
 		Where(goqu.Ex{"link_url": goqu.L("$1")}).
@@ -97,8 +94,8 @@ func (u *UserStorage) ChangeLastCheckTime(link Link, checkTime time.Time) error 
 	return nil
 }
 
-func (u *UserStorage) UsersWhoTrackLink(linkID LinkID) ([]User, error) {
-	var user User
+func (u *UserStorage) UsersWhoTrackLink(linkID LinkID) ([]scrapper.User, error) {
+	var user scrapper.User
 
 	sqlCms, _, _ := goqu.From("userlinks").
 		Select("user_id").
@@ -111,7 +108,7 @@ func (u *UserStorage) UsersWhoTrackLink(linkID LinkID) ([]User, error) {
 		return nil, fmt.Errorf("ошибка при получении отслеживающих ссылку пользователей: %w", err)
 	}
 
-	users := make([]User, 0, usersCap)
+	users := make([]scrapper.User, 0, usersCap)
 
 	for rows.Next() {
 		if err = rows.Scan(&user); err != nil {
@@ -128,8 +125,8 @@ func (u *UserStorage) UsersWhoTrackLink(linkID LinkID) ([]User, error) {
 	return users, nil
 }
 
-func (u *UserStorage) AllUserLinks(userID User) ([]Link, error) {
-	var link Link
+func (u *UserStorage) AllUserLinks(userID scrapper.User) ([]scrapper.Link, error) {
+	var link scrapper.Link
 
 	sqlCmd, _, _ := goqu.From("links").
 		Select("link_url").
@@ -143,7 +140,7 @@ func (u *UserStorage) AllUserLinks(userID User) ([]Link, error) {
 		return nil, fmt.Errorf("ошибка при выполнении запроса на получение всех ссылок пользователя: %w", err)
 	}
 
-	links := make([]Link, 0, linkCap)
+	links := make([]scrapper.Link, 0, linkCap)
 
 	for rows.Next() {
 		if err = rows.Scan(&link); err != nil {
@@ -160,8 +157,8 @@ func (u *UserStorage) AllUserLinks(userID User) ([]Link, error) {
 	return links, nil
 }
 
-func (u *UserStorage) UserTrackLink(userID User, url Link) (bool, error) { // переписать на Query Row
-	var link Link
+func (u *UserStorage) UserTrackLink(userID scrapper.User, url scrapper.Link) (bool, error) { // переписать на Query Row
+	var link scrapper.Link
 
 	sqlCmd, _, _ := goqu.From("links").
 		Select("link_url").
@@ -188,8 +185,8 @@ func (u *UserStorage) UserTrackLink(userID User, url Link) (bool, error) { // п
 	return link != "", nil
 }
 
-func (u *UserStorage) UserExist(userID User) (bool, error) {
-	var user User
+func (u *UserStorage) UserExist(userID scrapper.User) (bool, error) {
+	var user scrapper.User
 
 	sqlCmd, _, _ := goqu.From("users").
 		Select("user_id").
@@ -217,7 +214,7 @@ func (u *UserStorage) UserExist(userID User) (bool, error) {
 	return user == userID, nil
 }
 
-func (u *UserStorage) RegUser(userID User) error {
+func (u *UserStorage) RegUser(userID scrapper.User) error {
 	sqlCmd, _, _ := goqu.Insert("users").
 		Cols("user_id").
 		Vals(goqu.Vals{goqu.L("$1")}).
@@ -231,7 +228,7 @@ func (u *UserStorage) RegUser(userID User) error {
 	return nil
 }
 
-func (u *UserStorage) DeleteUser(ctx context.Context, user User) error {
+func (u *UserStorage) DeleteUser(ctx context.Context, user scrapper.User) error {
 	conn := transactor.GetQuerier(ctx, u.db)
 
 	sqlCmd, _, _ := goqu.Delete("userlinks").Where(goqu.Ex{"user_id": goqu.L("$1")}).ToSQL()
@@ -251,7 +248,7 @@ func (u *UserStorage) DeleteUser(ctx context.Context, user User) error {
 
 // using нету в библиотеке, по этому оставил запрос на чистом sql
 
-func (u *UserStorage) UntrackLink(user User, link Link) error {
+func (u *UserStorage) UntrackLink(user scrapper.User, link scrapper.Link) error {
 	_, err := u.db.Exec(context.Background(),
 		`DELETE FROM userlinks USING links 
        WHERE userlinks.link_id = links.link_id AND links.link_url = ($1) AND userlinks.user_id = ($2)`,

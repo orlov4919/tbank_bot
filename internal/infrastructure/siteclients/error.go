@@ -37,9 +37,7 @@ func (err *ErrClientCantTrackLink) Error() string {
 }
 
 type ErrNetwork struct {
-	err    error
-	link   string
-	client string
+	err error
 }
 
 func NewErrNetwork(client, link string, err error) *ErrNetwork {
@@ -48,6 +46,6 @@ func NewErrNetwork(client, link string, err error) *ErrNetwork {
 	}
 }
 
-func (err *ErrNetwork) Error() string {
-	return err.Error()
+func (e *ErrNetwork) Error() string {
+	return e.err.Error()
 }

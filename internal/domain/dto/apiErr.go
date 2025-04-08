@@ -1,28 +1,24 @@
 package dto
 
-// HTTP codes
+// HTTP codes.
 const (
 	httpStatusBadRequest = "400"
 	httpStatusNotFound   = "404"
 )
 
-// api err descriptions
+// api err descriptions.
 const (
 	wrongRequestArg = "Некорректные параметры запроса"
-	// methodNotAllowed  = "Метод не поддерживается"
-	// chatNotRegistered = "Чат не существует"
-	// linkNotFound  = "Ссылка не найдена"
-	// internalError = "Произошла внутренняя ошибка"
 )
 
-// exceptions name
+// exceptions name.
 const (
-	errId   = "id error"
+	errID   = "id error"
 	errBody = "body error"
 	errLink = "link erroe"
 )
 
-// exceptions message
+// exceptions message.
 const (
 	idNotNum             = "id не соответствует числу"
 	negativeID           = "полученное id < 0, должно быть id >=0"
@@ -35,17 +31,17 @@ const (
 	userNotTrackLink     = "пользователь не отслеживает эту ссылку"
 )
 
-// api errors chat handler
+// api errors chat handler.
 var (
-	ApiErrIDNotNum          = newAPIErrResponse(wrongRequestArg, errId, idNotNum, httpStatusBadRequest)
-	ApiErrNegativeID        = newAPIErrResponse(wrongRequestArg, errId, negativeID, httpStatusBadRequest)
-	ApiErrUserRegistered    = newAPIErrResponse(wrongRequestArg, errId, idRegistered, httpStatusBadRequest)
-	ApiErrUserNotRegistered = newAPIErrResponse(wrongRequestArg, errId, idNotRegistered, httpStatusNotFound)
-	ApiErrCantReadBody      = newAPIErrResponse(wrongRequestArg, errBody, cantReadBody, httpStatusBadRequest)
-	ApiErrBadJSON           = newAPIErrResponse(wrongRequestArg, errBody, badBodyJSON, httpStatusBadRequest)
-	ApiErrBadLink           = newAPIErrResponse(wrongRequestArg, errLink, cantTrackLink, httpStatusBadRequest)
-	ApiErrDuplicateLink     = newAPIErrResponse(wrongRequestArg, errLink, userAlreadyTrackLink, httpStatusBadRequest)
-	ApiErrNotTrackLink      = newAPIErrResponse(wrongRequestArg, errLink, userNotTrackLink, httpStatusNotFound)
+	APIErrIDNotNum          = newAPIErrResponse(errID, idNotNum, httpStatusBadRequest)
+	APIErrNegativeID        = newAPIErrResponse(errID, negativeID, httpStatusBadRequest)
+	APIErrUserRegistered    = newAPIErrResponse(errID, idRegistered, httpStatusBadRequest)
+	APIErrUserNotRegistered = newAPIErrResponse(errID, idNotRegistered, httpStatusNotFound)
+	APIErrCantReadBody      = newAPIErrResponse(errBody, cantReadBody, httpStatusBadRequest)
+	APIErrBadJSON           = newAPIErrResponse(errBody, badBodyJSON, httpStatusBadRequest)
+	APIErrBadLink           = newAPIErrResponse(errLink, cantTrackLink, httpStatusBadRequest)
+	APIErrDuplicateLink     = newAPIErrResponse(errLink, userAlreadyTrackLink, httpStatusBadRequest)
+	APIErrNotTrackLink      = newAPIErrResponse(errLink, userNotTrackLink, httpStatusNotFound)
 )
 
 type APIErrResponse struct {
@@ -56,9 +52,9 @@ type APIErrResponse struct {
 	Stacktrace       []string `json:"stacktrace"`
 }
 
-func newAPIErrResponse(description, exceptionName, exceptionMessage, code string) *APIErrResponse {
+func newAPIErrResponse(exceptionName, exceptionMessage, code string) *APIErrResponse {
 	return &APIErrResponse{
-		Description:      description,
+		Description:      wrongRequestArg,
 		Code:             code,
 		ExceptionName:    exceptionName,
 		ExceptionMessage: exceptionMessage,

@@ -1,8 +1,10 @@
 package telegram
 
+import "linkTraccer/internal/domain/tgbot"
+
 type GetUpdateAnswer struct {
 	DefaultServerAnswer
-	Updates Updates `json:"result"`
+	Updates tgbot.Updates `json:"result"`
 }
 
 type DefaultServerAnswer struct {

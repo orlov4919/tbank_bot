@@ -22,7 +22,7 @@ func (_m *ScrapClient) EXPECT() *ScrapClient_Expecter {
 }
 
 // AddLink provides a mock function with given fields: _a0, _a1
-func (_m *ScrapClient) AddLink(_a0 int, _a1 *tgbot.ContextData) error {
+func (_m *ScrapClient) AddLink(_a0 int64, _a1 *tgbot.ContextData) error {
 	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
@@ -30,7 +30,7 @@ func (_m *ScrapClient) AddLink(_a0 int, _a1 *tgbot.ContextData) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, *tgbot.ContextData) error); ok {
+	if rf, ok := ret.Get(0).(func(int64, *tgbot.ContextData) error); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
@@ -45,15 +45,15 @@ type ScrapClient_AddLink_Call struct {
 }
 
 // AddLink is a helper method to define mock.On call
-//   - _a0 int
+//   - _a0 int64
 //   - _a1 *tgbot.ContextData
 func (_e *ScrapClient_Expecter) AddLink(_a0 interface{}, _a1 interface{}) *ScrapClient_AddLink_Call {
 	return &ScrapClient_AddLink_Call{Call: _e.mock.On("AddLink", _a0, _a1)}
 }
 
-func (_c *ScrapClient_AddLink_Call) Run(run func(_a0 int, _a1 *tgbot.ContextData)) *ScrapClient_AddLink_Call {
+func (_c *ScrapClient_AddLink_Call) Run(run func(_a0 int64, _a1 *tgbot.ContextData)) *ScrapClient_AddLink_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int), args[1].(*tgbot.ContextData))
+		run(args[0].(int64), args[1].(*tgbot.ContextData))
 	})
 	return _c
 }
@@ -63,13 +63,13 @@ func (_c *ScrapClient_AddLink_Call) Return(_a0 error) *ScrapClient_AddLink_Call 
 	return _c
 }
 
-func (_c *ScrapClient_AddLink_Call) RunAndReturn(run func(int, *tgbot.ContextData) error) *ScrapClient_AddLink_Call {
+func (_c *ScrapClient_AddLink_Call) RunAndReturn(run func(int64, *tgbot.ContextData) error) *ScrapClient_AddLink_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RegUser provides a mock function with given fields: id
-func (_m *ScrapClient) RegUser(id int) error {
+func (_m *ScrapClient) RegUser(id int64) error {
 	ret := _m.Called(id)
 
 	if len(ret) == 0 {
@@ -77,7 +77,7 @@ func (_m *ScrapClient) RegUser(id int) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int) error); ok {
+	if rf, ok := ret.Get(0).(func(int64) error); ok {
 		r0 = rf(id)
 	} else {
 		r0 = ret.Error(0)
@@ -92,14 +92,14 @@ type ScrapClient_RegUser_Call struct {
 }
 
 // RegUser is a helper method to define mock.On call
-//   - id int
+//   - id int64
 func (_e *ScrapClient_Expecter) RegUser(id interface{}) *ScrapClient_RegUser_Call {
 	return &ScrapClient_RegUser_Call{Call: _e.mock.On("RegUser", id)}
 }
 
-func (_c *ScrapClient_RegUser_Call) Run(run func(id int)) *ScrapClient_RegUser_Call {
+func (_c *ScrapClient_RegUser_Call) Run(run func(id int64)) *ScrapClient_RegUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int))
+		run(args[0].(int64))
 	})
 	return _c
 }
@@ -109,13 +109,13 @@ func (_c *ScrapClient_RegUser_Call) Return(_a0 error) *ScrapClient_RegUser_Call 
 	return _c
 }
 
-func (_c *ScrapClient_RegUser_Call) RunAndReturn(run func(int) error) *ScrapClient_RegUser_Call {
+func (_c *ScrapClient_RegUser_Call) RunAndReturn(run func(int64) error) *ScrapClient_RegUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RemoveLink provides a mock function with given fields: _a0, _a1
-func (_m *ScrapClient) RemoveLink(_a0 int, _a1 string) error {
+func (_m *ScrapClient) RemoveLink(_a0 int64, _a1 string) error {
 	ret := _m.Called(_a0, _a1)
 
 	if len(ret) == 0 {
@@ -123,7 +123,7 @@ func (_m *ScrapClient) RemoveLink(_a0 int, _a1 string) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, string) error); ok {
+	if rf, ok := ret.Get(0).(func(int64, string) error); ok {
 		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
@@ -138,15 +138,15 @@ type ScrapClient_RemoveLink_Call struct {
 }
 
 // RemoveLink is a helper method to define mock.On call
-//   - _a0 int
+//   - _a0 int64
 //   - _a1 string
 func (_e *ScrapClient_Expecter) RemoveLink(_a0 interface{}, _a1 interface{}) *ScrapClient_RemoveLink_Call {
 	return &ScrapClient_RemoveLink_Call{Call: _e.mock.On("RemoveLink", _a0, _a1)}
 }
 
-func (_c *ScrapClient_RemoveLink_Call) Run(run func(_a0 int, _a1 string)) *ScrapClient_RemoveLink_Call {
+func (_c *ScrapClient_RemoveLink_Call) Run(run func(_a0 int64, _a1 string)) *ScrapClient_RemoveLink_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int), args[1].(string))
+		run(args[0].(int64), args[1].(string))
 	})
 	return _c
 }
@@ -156,13 +156,13 @@ func (_c *ScrapClient_RemoveLink_Call) Return(_a0 error) *ScrapClient_RemoveLink
 	return _c
 }
 
-func (_c *ScrapClient_RemoveLink_Call) RunAndReturn(run func(int, string) error) *ScrapClient_RemoveLink_Call {
+func (_c *ScrapClient_RemoveLink_Call) RunAndReturn(run func(int64, string) error) *ScrapClient_RemoveLink_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UserLinks provides a mock function with given fields: _a0
-func (_m *ScrapClient) UserLinks(_a0 int) ([]string, error) {
+func (_m *ScrapClient) UserLinks(_a0 int64) ([]string, error) {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -171,10 +171,10 @@ func (_m *ScrapClient) UserLinks(_a0 int) ([]string, error) {
 
 	var r0 []string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(int) ([]string, error)); ok {
+	if rf, ok := ret.Get(0).(func(int64) ([]string, error)); ok {
 		return rf(_a0)
 	}
-	if rf, ok := ret.Get(0).(func(int) []string); ok {
+	if rf, ok := ret.Get(0).(func(int64) []string); ok {
 		r0 = rf(_a0)
 	} else {
 		if ret.Get(0) != nil {
@@ -182,7 +182,7 @@ func (_m *ScrapClient) UserLinks(_a0 int) ([]string, error) {
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(int) error); ok {
+	if rf, ok := ret.Get(1).(func(int64) error); ok {
 		r1 = rf(_a0)
 	} else {
 		r1 = ret.Error(1)
@@ -197,14 +197,14 @@ type ScrapClient_UserLinks_Call struct {
 }
 
 // UserLinks is a helper method to define mock.On call
-//   - _a0 int
+//   - _a0 int64
 func (_e *ScrapClient_Expecter) UserLinks(_a0 interface{}) *ScrapClient_UserLinks_Call {
 	return &ScrapClient_UserLinks_Call{Call: _e.mock.On("UserLinks", _a0)}
 }
 
-func (_c *ScrapClient_UserLinks_Call) Run(run func(_a0 int)) *ScrapClient_UserLinks_Call {
+func (_c *ScrapClient_UserLinks_Call) Run(run func(_a0 int64)) *ScrapClient_UserLinks_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int))
+		run(args[0].(int64))
 	})
 	return _c
 }
@@ -214,7 +214,7 @@ func (_c *ScrapClient_UserLinks_Call) Return(_a0 []string, _a1 error) *ScrapClie
 	return _c
 }
 
-func (_c *ScrapClient_UserLinks_Call) RunAndReturn(run func(int) ([]string, error)) *ScrapClient_UserLinks_Call {
+func (_c *ScrapClient_UserLinks_Call) RunAndReturn(run func(int64) ([]string, error)) *ScrapClient_UserLinks_Call {
 	_c.Call.Return(run)
 	return _c
 }

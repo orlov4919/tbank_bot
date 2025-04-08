@@ -11,10 +11,6 @@ const (
 	descriptionFormat = "Пришло новое уведомление 🔥\n\nСобытие: %s\nПользователь: %s\nВремя создания: %s\nПревью: %s\n\n"
 )
 
-type LinkInfo = scrapper.LinkInfo
-type LinkUpdates = scrapper.LinkUpdates
-type LinkUpdate = scrapper.LinkUpdate
-
 type BotClient interface {
 	SendLinkUpdates(update *dto.LinkUpdate) error
 }
@@ -31,7 +27,7 @@ func New(userRepo scrapservice.UserRepo, botClient BotClient) *TgNotifier {
 	}
 }
 
-func (t *TgNotifier) SendUpdates(linkInfo *LinkInfo, linkUpdates LinkUpdates) error {
+func (t *TgNotifier) SendUpdates(linkInfo *scrapper.LinkInfo, linkUpdates scrapper.LinkUpdates) error {
 	users, err := t.userRepo.UsersWhoTrackLink(linkInfo.ID)
 
 	if err != nil {
@@ -39,7 +35,6 @@ func (t *TgNotifier) SendUpdates(linkInfo *LinkInfo, linkUpdates LinkUpdates) er
 	}
 
 	for _, update := range linkUpdates {
-
 		err := t.botClient.SendLinkUpdates(&dto.LinkUpdate{
 			ID:          linkInfo.ID,
 			URL:         linkInfo.URL,
@@ -54,7 +49,7 @@ func (t *TgNotifier) SendUpdates(linkInfo *LinkInfo, linkUpdates LinkUpdates) er
 	return nil
 }
 
-func (t *TgNotifier) notifyMsg(linkUpdate *LinkUpdate) string {
+func (t *TgNotifier) notifyMsg(linkUpdate *scrapper.LinkUpdate) string {
 	return fmt.Sprintf(descriptionFormat, linkUpdate.Header, linkUpdate.UserName,
 		linkUpdate.CreateTime, linkUpdate.Preview)
 }
