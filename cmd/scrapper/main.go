@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"linkTraccer/internal/application/scrapper/notifiers/tgnotifier"
 	"linkTraccer/internal/application/scrapper/scrapservice"
@@ -17,6 +18,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
@@ -44,15 +46,14 @@ func main() {
 	logLevel.Set(slog.LevelInfo)
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
-	dbConfig, err := sql.NewConfig()
 
+	dbConfig, err := sql.NewConfig()
 	if err != nil {
 		logger.Error("ошибка при получении конфига БД", "err", err.Error())
 		return
 	}
 
 	pgxPool, err := initPgxPool(dbConfig)
-
 	if err != nil {
 		logger.Error("ошибка инициализации пула соединений", "err", err.Error())
 		return
@@ -60,25 +61,13 @@ func main() {
 
 	logger.Info("соединение с БД успешно установлено")
 
-	var userStore scrapservice.UserRepo
-
-	switch dbConfig.AccessType {
-	case "SQL":
-		cleanSQLStore := cleansql.NewStore(dbConfig, pgxPool)
-
-		userStore = cleanSQLStore
-
-	case "ORM":
-		builderSQLStore := buildersql.NewStore(dbConfig, pgxPool)
-
-		userStore = builderSQLStore
-	default:
-		logger.Error("ошибка конфигурации", "err", "переменная окружения AccessType должна быть SQL или ORM")
+	userStore, err := initStore(dbConfig, pgxPool)
+	if err != nil {
+		logger.Error("ошибка при создании хранилища", "err", err.Error())
 		return
 	}
 
 	config, err := scrapconfig.New()
-
 	if err != nil {
 		logger.Error("ошибка при получении конфига scrapper", "err", err.Error())
 		return
@@ -94,7 +83,6 @@ func main() {
 	scheduler := gocron.NewScheduler(time.UTC)
 
 	_, err = scheduler.Every(time.Minute).Do(scrapper.CheckLinksUpdates)
-
 	if err != nil {
 		logger.Error("ошибка при запуске планировщика с проверкой ссылок", "err", err.Error())
 		return
@@ -105,7 +93,16 @@ func main() {
 	logger.Info("планировщик с проверкой ссылок успешно запущен")
 	logger.Info("сервер успешно запущен")
 
-	initAndRunServer(userStore, dbTransactor, logger, config, gitClient, stackClient)
+	wg := &sync.WaitGroup{}
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		initAndRunServer(userStore, dbTransactor, logger, config, gitClient, stackClient)
+	}()
+
+	wg.Wait()
 }
 
 func initPgxPool(dbConfig *sql.DBConfig) (*pgxpool.Pool, error) {
@@ -130,9 +127,19 @@ func initPgxPool(dbConfig *sql.DBConfig) (*pgxpool.Pool, error) {
 	return pgxPool, nil
 }
 
+func initStore(config *sql.DBConfig, pool *pgxpool.Pool) (UserRepo, error) {
+	switch config.AccessType {
+	case "SQL":
+		return cleansql.NewStore(config, pool), nil
+	case "ORM":
+		return buildersql.NewStore(config, pool), nil
+	default:
+		return nil, errors.New("переменная окружения AccessType, должна быть SQL или ORM")
+	}
+}
+
 func initAndRunServer(userStore UserRepo, dbTransactor Transactor, log *slog.Logger, cfg *Config, siteClients ...SiteClient) {
 	r := mux.NewRouter()
-
 	linksHandler := scraphandlers.NewLinkHandler(userStore, dbTransactor, log, siteClients...)
 	chatHandler := scraphandlers.NewChatHandler(userStore, dbTransactor, log)
 
@@ -150,8 +157,7 @@ func initAndRunServer(userStore UserRepo, dbTransactor Transactor, log *slog.Log
 	}
 
 	err := srv.ListenAndServe()
-
 	if err != nil {
-		log.Error("ошибка при работе сервера", "err", err.Error())
+		log.Error("сервер закончил работу", "err", err.Error())
 	}
 }

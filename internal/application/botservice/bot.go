@@ -6,30 +6,26 @@ import (
 	"log/slog"
 )
 
-type Link = tgbot.Link
-type Updates = tgbot.Updates
-type ID = tgbot.ID
-
 type TgClient interface {
-	HandleUsersUpdates(offset, limit int) (Updates, error)
+	HandleUsersUpdates(offset, limit int) (tgbot.Updates, error)
 	SendMessage(userID int64, text string) error
 	SetBotCommands(data *tgbot.SetCommands) error
 }
 
 type CtxStorage interface {
-	RegUser(id ID) error
-	AddURL(id ID, url string) error
-	AddFilters(id ID, filters []string) error
-	AddTags(id ID, tags []string) error
-	ResetCtx(id ID) error
-	UserContext(id ID) (*tgbot.ContextData, error)
+	RegUser(id tgbot.ID) error
+	AddURL(id tgbot.ID, url string) error
+	AddFilters(id tgbot.ID, filters []string) error
+	AddTags(id tgbot.ID, tags []string) error
+	ResetCtx(id tgbot.ID) error
+	UserContext(id tgbot.ID) (*tgbot.ContextData, error)
 }
 
 type ScrapClient interface {
-	RegUser(id ID) error
-	AddLink(ID, *tgbot.ContextData) error
-	RemoveLink(ID, Link) error
-	UserLinks(ID) ([]Link, error)
+	RegUser(id tgbot.ID) error
+	AddLink(tgbot.ID, *tgbot.ContextData) error
+	RemoveLink(tgbot.ID, tgbot.Link) error
+	UserLinks(tgbot.ID) ([]tgbot.Link, error)
 }
 
 type TgBot struct {
@@ -52,18 +48,19 @@ func New(client TgClient, scrapClient ScrapClient, ctxStorage CtxStorage, log *s
 	}
 }
 
-func (bot *TgBot) Init() {
+func (bot *TgBot) Init() error {
 	var err error
 
 	bot.states, err = tgbot.NewStateMachine(InitialState, botStates())
-
 	if err != nil {
-		bot.log.Debug("ошибка при создании машины состояний", "err", err.Error())
+		return err
 	}
 
-	if err = bot.setCommands(); err != nil {
-		bot.log.Debug("ошибка при установке команд бота", "err", err.Error())
+	if err := bot.setCommands(); err != nil {
+		return err
 	}
+
+	return nil
 }
 
 func (bot *TgBot) CheckUsersMsg() {

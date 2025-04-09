@@ -57,7 +57,7 @@ func (u *UpdatesHandler) HandleLinkUpdates(w http.ResponseWriter, r *http.Reques
 		err := u.tgClient.SendMessage(userID, linkUpdate.Description+linkUpdate.URL)
 
 		if err != nil {
-			u.log.Debug("ошибка при отправке обновлений в телеграмм", "err", err.Error())
+			u.log.Error("ошибка при отправке обновлений по ссылке в телеграмм", "err", err.Error())
 		}
 	}
 }
@@ -69,6 +69,6 @@ func (u *UpdatesHandler) APIErrToResponse(w http.ResponseWriter, errAPI *dto.API
 	err := json.NewEncoder(w).Encode(errAPI)
 
 	if err != nil {
-		u.log.Debug("ошибка при формировании JSON APIErrResponse", "err", err.Error())
+		u.log.Error("ошибка при формировании JSON APIErrResponse", "err", err.Error())
 	}
 }

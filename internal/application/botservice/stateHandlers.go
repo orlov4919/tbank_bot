@@ -6,23 +6,23 @@ import (
 	"strings"
 )
 
-func RegHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id ID, _ tgbot.EventType) error {
+func RegHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, _ tgbot.EventType) error {
 	if err := ctxStore.RegUser(id); err != nil {
 		return fmt.Errorf("при регистрации в хранилище контекстной информации возникла ошибка: %w", err)
-	}
-
-	if err := scrap.RegUser(id); err != nil {
-		return fmt.Errorf("при регистрации пользователя произошла ошибка: %w", err)
 	}
 
 	if err := client.SendMessage(id, FirstMessage); err != nil {
 		return fmt.Errorf("при отправке %s произошла ошибка: %w", FirstMessage, err)
 	}
 
+	if err := scrap.RegUser(id); err != nil {
+		return fmt.Errorf("при регистрации пользователя произошла ошибка: %w", err)
+	}
+
 	return nil
 }
 
-func CommandsStateHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id ID, event tgbot.EventType) error {
+func CommandsStateHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
 	err := CommandsHandler(client, scrap, ctxStore, id, event)
 
 	if err != nil {
@@ -34,7 +34,7 @@ func CommandsStateHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorag
 	return nil
 }
 
-func LinkRemoveHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id ID, event tgbot.EventType) error {
+func LinkRemoveHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
 	err := CommandsHandler(client, scrap, ctxStore, id, event)
 	if err == nil {
 		return nil
@@ -51,7 +51,7 @@ func LinkRemoveHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, 
 	return sendMessageWithError(client, id, LinkDelete)
 }
 
-func sendMessageWithError(client TgClient, id ID, message string) error {
+func sendMessageWithError(client TgClient, id tgbot.ID, message string) error {
 	errorFormat := "при отправке сообщения %s произошла ошибка: %w"
 	if err := client.SendMessage(id, message); err != nil {
 		return fmt.Errorf(errorFormat, message, err)
@@ -60,7 +60,7 @@ func sendMessageWithError(client TgClient, id ID, message string) error {
 	return nil
 }
 
-func AddLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id ID, event tgbot.EventType) error {
+func AddLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
 	err := CommandsHandler(client, scrap, ctxStore, id, event)
 
 	if err != nil {
@@ -76,7 +76,7 @@ func AddLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id 
 	return nil
 }
 
-func AddTagHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id ID, event tgbot.EventType) error {
+func AddTagHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
 	err := CommandsHandler(client, scrap, ctxStore, id, event)
 
 	if err != nil {
@@ -92,7 +92,7 @@ func AddTagHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id I
 	return nil
 }
 
-func SaveLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id ID, event tgbot.EventType) error {
+func SaveLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
 	err := CommandsHandler(client, scrap, ctxStore, id, event)
 	if err == nil {
 		return nil
@@ -114,7 +114,7 @@ func SaveLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id
 	return sendMessageWithError(client, id, GoodLink)
 }
 
-func CommandsHandler(client TgClient, scrap ScrapClient, _ CtxStorage, id ID, event tgbot.EventType) error {
+func CommandsHandler(client TgClient, scrap ScrapClient, _ CtxStorage, id tgbot.ID, event tgbot.EventType) error {
 	switch event {
 	case Start:
 		if err := client.SendMessage(id, FirstMessage); err != nil {
@@ -157,7 +157,7 @@ func CommandsHandler(client TgClient, scrap ScrapClient, _ CtxStorage, id ID, ev
 	return nil
 }
 
-func formatLinksMsg(links []Link) string {
+func formatLinksMsg(links []tgbot.Link) string {
 	builder := strings.Builder{}
 
 	builder.WriteString("Список ваших ссылок:\n\n")
