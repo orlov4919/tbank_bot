@@ -7,17 +7,16 @@ import (
 )
 
 type Config struct {
-	BotHost      string `env:"BOT_HOST"`
-	BotPort      string `env:"BOT_PORT"`
-	ScrapperPort string `env:"SCRAPPER_PORT"`
-	GitHubAPIKey string `env:"GIT_KEY"`
+	UpdatesTransport string `env:"UPDATE_TRANSPORT"`
+	ScrapperPort     string `env:"SCRAPPER_PORT"`
+	GitHubAPIKey     string `env:"GIT_KEY"`
 }
 
 func New() (*Config, error) {
 	config := &Config{}
 
 	if err := env.Parse(config); err != nil {
-		return nil, fmt.Errorf("ошибка при конфигурации scrapper: %w", err)
+		return nil, fmt.Errorf("ошибка при парсинге конфигурации scrapper: %w", err)
 	}
 
 	return config, nil

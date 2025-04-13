@@ -87,3 +87,7 @@ func initAndRunServer(tgClient botservice.TgClient, config *botconfig.Config, lo
 		logger.Error("сервер закончил работу", "err", err.Error())
 	}
 }
+
+func initAndRunConsumer() {
+
+}

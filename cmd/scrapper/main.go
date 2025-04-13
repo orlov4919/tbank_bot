@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-co-op/gocron"
 	"linkTraccer/internal/application/scrapper/notifiers/tgnotifier"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/infrastructure/botclient"
@@ -16,13 +17,13 @@ import (
 	"linkTraccer/internal/infrastructure/siteclients/github"
 	"linkTraccer/internal/infrastructure/siteclients/stackoverflow"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"sync"
 	"time"
 
 	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
-	"github.com/go-co-op/gocron"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -77,7 +78,15 @@ func main() {
 	stackClient := stackoverflow.NewClient(stackOverflowAPI, &http.Client{Timeout: time.Second * 10},
 		stackoverflow.HTMLStrCleaner(maxPreviewLen))
 	gitClient := github.NewClient(gitHubAPI, config.GitHubAPIKey, &http.Client{Timeout: time.Second * 10})
-	tgBotClient := botclient.New(config.BotHost+config.BotPort, &http.Client{Timeout: time.Second * 10})
+
+	// есть проблема с незакрываемым продюсером
+
+	tgBotClient, err := initUpdatesTransport(config)
+	if err != nil {
+		logger.Error("ошибка при инициализации клиента тг бота", "err", err.Error())
+		return
+	}
+
 	notifierService := tgnotifier.New(userStore, tgBotClient)
 	scrapper := scrapservice.New(userStore, notifierService, logger, stackClient, gitClient)
 	scheduler := gocron.NewScheduler(time.UTC)
@@ -103,6 +112,28 @@ func main() {
 	}()
 
 	wg.Wait()
+}
+
+func initUpdatesTransport(config *scrapconfig.Config) (tgnotifier.BotClient, error) {
+	switch config.UpdatesTransport {
+	case "KAFKA":
+		kafkaConfig, err := producer_test.NewConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		return producer_test.New(kafkaConfig), nil
+
+	case "HTTP":
+		httpConfig, err := botclient.NewConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		return botclient.New(net.JoinHostPort(httpConfig.BotHost, httpConfig.BotPort), &http.Client{Timeout: time.Second * 10}), nil
+	default:
+		return nil, errors.New("UPDATE_TRANSPORT должен быть KAFKA или HTTP")
+	}
 }
 
 func initPgxPool(dbConfig *sql.DBConfig) (*pgxpool.Pool, error) {

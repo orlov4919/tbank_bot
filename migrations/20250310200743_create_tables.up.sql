@@ -34,5 +34,3 @@ CREATE TABLE userLinks(
                           FOREIGN KEY (tag_id)
                             REFERENCES tags(tag_id)
 );
-
-
