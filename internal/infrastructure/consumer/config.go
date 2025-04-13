@@ -8,7 +8,7 @@ import (
 type Config struct {
 	Topic   string `env:"UPDATE_TOPIC"`
 	Brokers string `env:"BROKERS_ADDR"`
-	Bath    int    `env:"KAFKA_BATCH_SIZE"`
+	Batch   int    `env:"KAFKA_BATCH_SIZE"`
 }
 
 func NewConfig() (*Config, error) {

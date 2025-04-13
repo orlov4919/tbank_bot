@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-func NewConsumer(tgClient botservice.TgClient, log *slog.Logger, config Config) *Consumer {
-	return &Consumer{
+func New(tgClient botservice.TgClient, config *Config, log *slog.Logger) *KafkaConsumer {
+	return &KafkaConsumer{
 		reader: kafka.NewReader(
 			kafka.ReaderConfig{Brokers: strings.Split(config.Brokers, ","),
 				Topic:    config.Topic,
@@ -23,13 +23,13 @@ func NewConsumer(tgClient botservice.TgClient, log *slog.Logger, config Config) 
 	}
 }
 
-type Consumer struct {
+type KafkaConsumer struct {
 	tgClient botservice.TgClient
 	log      *slog.Logger
 	reader   *kafka.Reader
 }
 
-func (c *Consumer) ReadUserUpdates(ctx context.Context) error {
+func (c *KafkaConsumer) ReadUserUpdates(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -39,7 +39,7 @@ func (c *Consumer) ReadUserUpdates(ctx context.Context) error {
 		default:
 			msg, err := c.reader.ReadMessage(context.Background())
 
-			if errors.Is(err, ctx.Err()) {
+			if err != nil && errors.Is(err, ctx.Err()) {
 				c.log.Info("consumer завершил свою работу")
 				return nil
 			}
@@ -53,21 +53,28 @@ func (c *Consumer) ReadUserUpdates(ctx context.Context) error {
 
 			if err := json.Unmarshal(msg.Value, updates); err != nil {
 				c.log.Error("ошибка при анмаршалинге сообщений из топика", "err", err)
-				// TODO: нужно отправлять эти сообщения в DLQ
+				continue
 			}
 
 			if err := c.processUpdate(updates); err != nil {
 				c.log.Error("ошибка при обработке обновлений", "err", err.Error())
 			}
-
 		}
 	}
 }
 
-func (c *Consumer) processUpdate(updates *dto.LinkUpdate) error {
-	if err := c.tgClient.SendMessage(updates.ID, updates.Description+updates.URL); err != nil {
-		return fmt.Errorf("ошибка при отправке обновлений в телеграмм: %w", err)
+func (c *KafkaConsumer) processUpdate(updates *dto.LinkUpdate) error {
+	msg := updates.Description + updates.URL
+
+	for _, userID := range updates.TgChatIDs {
+		if err := c.tgClient.SendMessage(userID, msg); err != nil {
+			return fmt.Errorf("ошибка при отправке обновлений в телеграмм: %w", err)
+		}
 	}
 
 	return nil
+}
+
+func (c *KafkaConsumer) Close() error {
+	return c.reader.Close()
 }
