@@ -1,10 +1,11 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"fmt"
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
 	"github.com/go-co-op/gocron"
+	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"linkTraccer/internal/application/scrapper/notifiers/tgnotifier"
 	"linkTraccer/internal/application/scrapper/scrapservice"
 	"linkTraccer/internal/infrastructure/botclient"
@@ -14,7 +15,6 @@ import (
 	"linkTraccer/internal/infrastructure/database/sql/transactor"
 	"linkTraccer/internal/infrastructure/scrapconfig"
 	"linkTraccer/internal/infrastructure/scraphandlers"
-	"linkTraccer/internal/infrastructure/siteclients/github"
 	"linkTraccer/internal/infrastructure/siteclients/stackoverflow"
 	"log/slog"
 	"net"
@@ -22,10 +22,6 @@ import (
 	"os"
 	"sync"
 	"time"
-
-	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
-	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (

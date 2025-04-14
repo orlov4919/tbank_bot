@@ -71,7 +71,7 @@ func botStates() tgbot.States {
 	return states
 }
 
-type stateHandler func(TgClient, ScrapClient, CtxStorage, tgbot.ID, tgbot.EventType) error
+type stateHandler func(tgbot.ID, tgbot.EventType) error
 
 var stateHandlers = map[tgbot.StateType]stateHandler{
 	InitialState:         RegHandler,

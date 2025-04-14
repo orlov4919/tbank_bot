@@ -6,16 +6,16 @@ import (
 	"strings"
 )
 
-func RegHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, _ tgbot.EventType) error {
-	if err := ctxStore.RegUser(id); err != nil {
+func (bot *TgBot) RegHandler(id tgbot.ID, _ tgbot.EventType) error {
+	if err := bot.ctxStore.RegUser(id); err != nil {
 		return fmt.Errorf("при регистрации в хранилище контекстной информации возникла ошибка: %w", err)
 	}
 
-	if err := client.SendMessage(id, FirstMessage); err != nil {
+	if err := bot.client.SendMessage(id, FirstMessage); err != nil {
 		return fmt.Errorf("при отправке %s произошла ошибка: %w", FirstMessage, err)
 	}
 
-	if err := scrap.RegUser(id); err != nil {
+	if err := bot.scrap.RegUser(id); err != nil {
 		return fmt.Errorf("при регистрации пользователя произошла ошибка: %w", err)
 	}
 

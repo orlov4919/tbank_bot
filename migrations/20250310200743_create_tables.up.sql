@@ -19,7 +19,8 @@ CREATE TABLE tags (
                       PRIMARY KEY (tag_id)
 );
 
-CREATE TABLE userLinks(
+CREATE TABLE userLinks
+(
                           user_id BIGINT NOT null,
                           link_id BIGINT NOT NULL,
                           tag_id  BIGINT DEFAULT NULL,
@@ -34,3 +35,12 @@ CREATE TABLE userLinks(
                           FOREIGN KEY (tag_id)
                             REFERENCES tags(tag_id)
 );
+
+CREATE TABLE update_time(
+    time_id BIGSERIAL,
+    send_time TIMESTAMP,
+
+
+    PRIMARY KEY (time_id)
+)
+

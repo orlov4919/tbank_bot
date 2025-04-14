@@ -27,7 +27,10 @@ services:
       -path /migrations
       -database "postgres://${DB_USER}:${DB_PASS}@postgres:5432/${DB_NAME}?sslmode=disable" up
 
-
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
 
   zookeeper:
     image: confluentinc/cp-zookeeper:6.1.1

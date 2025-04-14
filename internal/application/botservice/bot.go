@@ -28,19 +28,28 @@ type ScrapClient interface {
 	UserLinks(tgbot.ID) ([]tgbot.Link, error)
 }
 
-type TgBot struct {
-	offset      int
-	limit       int
-	log         *slog.Logger
-	states      *tgbot.StateMachine
-	client      TgClient
-	ctxStore    CtxStorage
-	scrapClient ScrapClient
+type HashStore interface {
+	SetUserLinks(id tgbot.ID, links string) error
+	GetUserLinks(id tgbot.ID) (string, error)
+	InvalidateUserCache(id tgbot.ID) error
 }
 
-func New(client TgClient, scrapClient ScrapClient, ctxStorage CtxStorage, log *slog.Logger, limit int) *TgBot {
+type TgBot struct {
+	offset         int
+	limit          int
+	log            *slog.Logger
+	states         *tgbot.StateMachine
+	client         TgClient
+	ctxStore       CtxStorage
+	hashStore      HashStore
+	scrapClient    ScrapClient
+	statesHandlers map[tgbot.StateType]stateHandler
+}
+
+func New(client TgClient, scrapClient ScrapClient, ctxStore CtxStorage, hashStore HashStore, log *slog.Logger, limit int) *TgBot {
 	return &TgBot{
-		ctxStore:    ctxStorage,
+		ctxStore:    ctxStore,
+		hashStore:   hashStore,
 		client:      client,
 		limit:       limit,
 		scrapClient: scrapClient,
@@ -64,7 +73,12 @@ func (bot *TgBot) Init() error {
 }
 
 func (bot *TgBot) CheckUsersMsg() {
-	updates, _ := bot.client.HandleUsersUpdates(bot.offset, bot.limit) // надо подумать что делать с ошибкой
+	updates, err := bot.client.HandleUsersUpdates(bot.offset, bot.limit)
+	if err != nil {
+		bot.log.Error("ошибка при пулинге новых сообщений", "err", err.Error())
+		return
+	}
+
 	updatesNum := len(updates)
 
 	if updatesNum > 0 {
