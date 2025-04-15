@@ -56,7 +56,7 @@ func (s *ScrapperClient) RegUser(id tgbot.ID) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return NewErrBadRequestStatus("не получилось зарегистрировать юзера", resp.StatusCode)
+		return tgbot.NewErrBadRequestStatus("не получилось зарегистрировать юзера", resp.StatusCode)
 	}
 
 	return nil
@@ -86,7 +86,7 @@ func (s *ScrapperClient) UserLinks(id tgbot.ID) ([]tgbot.Link, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, NewErrBadRequestStatus("не смогли получить ссылки пользователя", resp.StatusCode)
+		return nil, tgbot.NewErrBadRequestStatus("не смогли получить ссылки пользователя", resp.StatusCode)
 	}
 
 	listLinks := &scrapper.ListLinksResponse{}
@@ -135,8 +135,12 @@ func (s *ScrapperClient) RemoveLink(id tgbot.ID, link tgbot.Link) error {
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return tgbot.LinkNotExist
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return NewErrBadRequestStatus("не смогли удалить ссылку пользователя", resp.StatusCode)
+		return tgbot.NewErrBadRequestStatus("не смогли удалить ссылку пользователя", resp.StatusCode)
 	}
 
 	return nil
@@ -177,8 +181,12 @@ func (s *ScrapperClient) AddLink(id tgbot.ID, userCtx *tgbot.ContextData) error 
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusBadRequest {
+		return tgbot.LinkNotSupport
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return NewErrBadRequestStatus("не смогли добавить ссылку пользователя", resp.StatusCode)
+		return tgbot.NewErrBadRequestStatus("не смогли добавить ссылку пользователя", resp.StatusCode)
 	}
 
 	return nil

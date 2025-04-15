@@ -1,6 +1,7 @@
 package botservice
 
 import (
+	"errors"
 	"fmt"
 	"linkTraccer/internal/domain/tgbot"
 	"strings"
@@ -15,143 +16,142 @@ func (bot *TgBot) RegHandler(id tgbot.ID, _ tgbot.EventType) error {
 		return fmt.Errorf("при отправке %s произошла ошибка: %w", FirstMessage, err)
 	}
 
-	if err := bot.scrap.RegUser(id); err != nil {
+	if err := bot.scrapClient.RegUser(id); err != nil {
 		return fmt.Errorf("при регистрации пользователя произошла ошибка: %w", err)
 	}
 
 	return nil
 }
 
-func CommandsStateHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
-	err := CommandsHandler(client, scrap, ctxStore, id, event)
-
+func (bot *TgBot) CommandsStateHandler(id tgbot.ID, event tgbot.EventType) error {
+	err := bot.CommandsHandler(id, event)
 	if err != nil {
-		if err := client.SendMessage(id, UnknownCommand); err != nil {
-			return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", UnknownCommand, err)
-		}
+		return bot.sendMessage(id, UnknownCommand)
 	}
 
 	return nil
 }
 
-func LinkRemoveHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
-	err := CommandsHandler(client, scrap, ctxStore, id, event)
-	if err == nil {
-		return nil
+func (bot *TgBot) LinkRemoveHandler(id tgbot.ID, event tgbot.EventType) error {
+	err := bot.CommandsHandler(id, event)
+	if err == nil || !errors.Is(err, ErrCommandNotFound) {
+		return err
 	}
 
-	if err := ctxStore.AddURL(id, event); err != nil {
+	if err := bot.ctxStore.AddURL(id, event); err != nil {
 		return fmt.Errorf("при добавлении ссылки в контекстное хранилище произошла ошибка: %w", err)
 	}
 
-	if err := scrap.RemoveLink(id, event); err != nil {
-		return sendMessageWithError(client, id, NotSaveThisLink)
+	err = bot.scrapClient.RemoveLink(id, event)
+	if errors.Is(err, tgbot.LinkNotExist) {
+		return bot.sendMessage(id, NotSaveThisLink)
 	}
-
-	return sendMessageWithError(client, id, LinkDelete)
-}
-
-func sendMessageWithError(client TgClient, id tgbot.ID, message string) error {
-	errorFormat := "при отправке сообщения %s произошла ошибка: %w"
-	if err := client.SendMessage(id, message); err != nil {
-		return fmt.Errorf(errorFormat, message, err)
-	}
-
-	return nil
-}
-
-func AddLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
-	err := CommandsHandler(client, scrap, ctxStore, id, event)
 
 	if err != nil {
-		if err := ctxStore.AddURL(id, event); err != nil {
-			return fmt.Errorf("при добавлении ссылки в контекстное хранилище, произошла ошибка :%w", err)
-		}
-
-		if err := client.SendMessage(id, AddLinkTagMsg); err != nil {
-			return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", AddLinkTagMsg, err)
-		}
+		return err
 	}
 
-	return nil
-}
-
-func AddTagHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
-	err := CommandsHandler(client, scrap, ctxStore, id, event)
-
-	if err != nil {
-		if err := ctxStore.AddTags(id, []string{event}); err != nil { // временное решение
-			return fmt.Errorf("при добавлении тегов в контекстное хранилище, произошла ошибка :%w", err)
-		}
-
-		if err := client.SendMessage(id, AddLinkFilterMsg); err != nil {
-			return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", AddLinkFilterMsg, err)
-		}
+	if err := bot.hashStore.InvalidateUserCache(id); err != nil {
+		bot.log.Error("ошибка инвалидации кеша, при удалении ссылки", "err", err.Error())
 	}
 
-	return nil
+	return bot.sendMessage(id, LinkDelete)
 }
 
-func SaveLinkHandler(client TgClient, scrap ScrapClient, ctxStore CtxStorage, id tgbot.ID, event tgbot.EventType) error {
-	err := CommandsHandler(client, scrap, ctxStore, id, event)
-	if err == nil {
+func (bot *TgBot) AddLinkHandler(id tgbot.ID, event tgbot.EventType) error {
+	err := bot.CommandsHandler(id, event)
+	if err == nil || !errors.Is(err, ErrCommandNotFound) {
+		return err
+	}
+
+	if err := bot.ctxStore.AddURL(id, event); err != nil {
+		return fmt.Errorf("при добавлении ссылки в контекстное хранилище, произошла ошибка :%w", err)
+	}
+
+	return bot.sendMessage(id, AddLinkTagMsg)
+}
+
+func (bot *TgBot) AddTagHandler(id tgbot.ID, event tgbot.EventType) error {
+	err := bot.CommandsHandler(id, event)
+	if err == nil || !errors.Is(err, ErrCommandNotFound) {
+		return err
+	}
+
+	if err := bot.ctxStore.AddTags(id, []string{event}); err != nil {
+		return fmt.Errorf("при добавлении тегов в контекстное хранилище, произошла ошибка :%w", err)
+	}
+
+	return bot.sendMessage(id, AddLinkFilterMsg)
+}
+
+func (bot *TgBot) SaveLinkHandler(id tgbot.ID, event tgbot.EventType) error {
+	err := bot.CommandsHandler(id, event)
+	if err == nil || !errors.Is(err, ErrCommandNotFound) {
 		return nil
 	}
 
-	if err := ctxStore.AddFilters(id, []string{event}); err != nil {
+	if err := bot.ctxStore.AddFilters(id, []string{event}); err != nil {
 		return fmt.Errorf("при добавлении фильтров в контекстное хранилище произошла ошибка: %w", err)
 	}
 
-	userContext, err := ctxStore.UserContext(id)
+	userContext, err := bot.ctxStore.UserContext(id)
 	if err != nil {
-		return fmt.Errorf("при получении контекстной информации произошла ошибка: %w", err)
+		return fmt.Errorf("ошибка при сохраненни, при получении контекстной информации произошла ошибка: %w", err)
 	}
 
-	if err := scrap.AddLink(id, userContext); err != nil {
-		return sendMessageWithError(client, id, WrongLink)
+	err = bot.scrapClient.AddLink(id, userContext)
+	if errors.Is(err, tgbot.LinkNotSupport) {
+		return bot.sendMessage(id, WrongLink)
 	}
 
-	return sendMessageWithError(client, id, GoodLink)
+	if err != nil {
+		return err
+	}
+
+	if err := bot.hashStore.InvalidateUserCache(id); err != nil {
+		bot.log.Error("ошибка инвалидации кеша, при добавлении ссылки", "err", err.Error())
+	}
+
+	return bot.sendMessage(id, GoodLink)
 }
 
-func CommandsHandler(client TgClient, scrap ScrapClient, _ CtxStorage, id tgbot.ID, event tgbot.EventType) error {
+func (bot *TgBot) CommandsHandler(id tgbot.ID, event tgbot.EventType) error {
 	switch event {
 	case Start:
-		if err := client.SendMessage(id, FirstMessage); err != nil {
-			return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", FirstMessage, err)
-		}
+		return bot.sendMessage(id, FirstMessage)
 	case Help:
-		if err := client.SendMessage(id, HelpMessage); err != nil {
-			return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", HelpMessage, err)
-		}
+		return bot.sendMessage(id, HelpMessage)
 	case List:
-		links, err := scrap.UserLinks(id)
-
+		links, err := bot.hashStore.GetUserLinks(id)
 		if err != nil {
-			return fmt.Errorf("при получении ссылок произошла ошибка: %w", err)
+			bot.log.Error("не удалось получить список ссылок из кеша", "err", err.Error())
+
+			userLinks, err := bot.scrapClient.UserLinks(id)
+			if err != nil {
+				return err
+			}
+
+			links = formatLinksMsg(userLinks)
 		}
 
 		if len(links) == 0 {
-			if err = client.SendMessage(id, NoSavedLinks); err != nil {
-				return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", NoSavedLinks, err)
-			}
-		} else {
-			if err = client.SendMessage(id, formatLinksMsg(links)); err != nil {
-				return fmt.Errorf("при отправке ссылок произошла ошибка: %w", err)
-			}
+			return bot.sendMessage(id, NoSavedLinks)
 		}
+
+		return bot.sendMessage(id, links)
 
 	case Untrack:
-		if err := client.SendMessage(id, UntrackLink); err != nil {
-			return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", UntrackLink, err)
-		}
-
+		return bot.sendMessage(id, UntrackLink)
 	case Track:
-		if err := client.SendMessage(id, TrackLink); err != nil {
-			return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", TrackLink, err)
-		}
+		return bot.sendMessage(id, TrackLink)
 	default:
-		return NewErrCommandNotFound(event)
+		return ErrCommandNotFound
+	}
+}
+
+func (bot *TgBot) sendMessage(id tgbot.ID, message string) error {
+	if err := bot.client.SendMessage(id, message); err != nil {
+		return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", message, err)
 	}
 
 	return nil

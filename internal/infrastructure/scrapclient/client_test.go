@@ -23,29 +23,31 @@ const (
 	savedLink tgbot.Link = "tbank.ru"
 )
 
-var links = &scrapper.ListLinksResponse{
-	Size: 1,
-	Links: []scrapper.LinkResponse{
-		{
-			URL:     savedLink,
-			Tags:    []string{},
-			Filters: []string{},
+var (
+	links = &scrapper.ListLinksResponse{
+		Size: 1,
+		Links: []scrapper.LinkResponse{
+			{
+				URL:     savedLink,
+				Tags:    []string{},
+				Filters: []string{},
+			},
 		},
-	},
-}
+	}
 
-var linksJSON, _ = json.Marshal(links)
+	linksJSON, _ = json.Marshal(links)
 
-var errTest = errors.New("ошибка для теста")
+	errTest = errors.New("ошибка для теста")
 
-var badResponse = &http.Response{StatusCode: http.StatusBadRequest,
-	Body: io.NopCloser(bytes.NewBuffer([]byte{}))}
+	badResponse = &http.Response{StatusCode: http.StatusBadRequest,
+		Body: io.NopCloser(bytes.NewBuffer([]byte{}))}
 
-var goodResponse = &http.Response{StatusCode: http.StatusOK,
-	Body: io.NopCloser(bytes.NewBuffer(linksJSON))}
+	goodResponse = &http.Response{StatusCode: http.StatusOK,
+		Body: io.NopCloser(bytes.NewBuffer(linksJSON))}
 
-var badBodyResponse = &http.Response{StatusCode: http.StatusOK,
-	Body: io.NopCloser(bytes.NewBuffer([]byte(randomStr)))}
+	badBodyResponse = &http.Response{StatusCode: http.StatusOK,
+		Body: io.NopCloser(bytes.NewBuffer([]byte(randomStr)))}
+)
 
 func TestScrapperClient_RegUser(t *testing.T) {
 	badClient := mocks.NewHTTPClient(t)

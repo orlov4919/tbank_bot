@@ -1,6 +1,28 @@
 package tgbot
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var LinkNotExist = errors.New("ссылка не найдена")
+var LinkNotSupport = errors.New("отслеживание переданной ссылки не поддерживается")
+
+type ErrBadRequestStatus struct {
+	msg  string
+	code int
+}
+
+func NewErrBadRequestStatus(msg string, code int) *ErrBadRequestStatus {
+	return &ErrBadRequestStatus{
+		msg:  msg,
+		code: code,
+	}
+}
+
+func (err *ErrBadRequestStatus) Error() string {
+	return fmt.Sprintf("%s код ответа сервера: %d", err.msg, err.code)
+}
 
 type ErrMachineCreationFailed struct {
 }

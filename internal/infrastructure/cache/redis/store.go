@@ -5,6 +5,7 @@ import (
 	"github.com/go-redis/redis"
 	"linkTraccer/internal/domain/tgbot"
 	"strconv"
+	"time"
 )
 
 type Store struct {
@@ -22,7 +23,7 @@ func NewStore(config *Config) (*Store, error) {
 }
 
 func (s *Store) SetUserLinks(id tgbot.ID, links string) error {
-	if err := s.client.Set(strconv.FormatInt(id, 10), links, 0).Err(); err != nil {
+	if err := s.client.Set(strconv.FormatInt(id, 10), links, time.Minute*3).Err(); err != nil {
 		return fmt.Errorf("ошибка при обновлении кеша пользователя c id %d: %w", id, err)
 	}
 

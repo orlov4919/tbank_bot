@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-co-op/gocron"
 	"linkTraccer/internal/application/botservice"
 	"linkTraccer/internal/infrastructure/botconfig"
 	"linkTraccer/internal/infrastructure/bothandler"
@@ -13,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-co-op/gocron"
 	"github.com/gorilla/mux"
 )
 
