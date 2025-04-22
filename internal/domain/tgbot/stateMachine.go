@@ -3,45 +3,43 @@ package tgbot
 // специальная константа, которая задает переход в следующее состояние, по любому сообщению
 
 const (
-	TextEvent EventType = "text"
+	TextEvent Event = "text"
 )
 
 type ID = int64
-
-type EventType = string
-
-type StateType = string
+type Event = string
+type State = string
 
 type state struct {
-	transitions map[EventType]StateType
+	transitions map[Event]State
 }
 
 type StateMachine struct {
-	current map[ID]StateType
-	initial StateType
-	states  map[StateType]state
+	current map[ID]State
+	initial State
+	states  map[State]state
 }
 
 type Transition struct {
-	Event EventType
-	Dst   StateType
+	Event Event
+	Dst   State
 }
 
 type Transitions []Transition
 
 type StateDesc struct {
-	Name        StateType
+	Name        State
 	Transitions Transitions
 }
 
 type States []StateDesc
 
-func NewStateMachine(initial StateType, states States) (*StateMachine, error) {
-	mStates := make(map[StateType]state)
+func NewStateMachine(initial State, states States) (*StateMachine, error) {
+	mStates := make(map[State]state)
 
 	for _, s := range states {
 		state := state{
-			transitions: make(map[EventType]StateType),
+			transitions: make(map[Event]State),
 		}
 
 		for _, t := range s.Transitions {
@@ -56,7 +54,7 @@ func NewStateMachine(initial StateType, states States) (*StateMachine, error) {
 	}
 
 	machine := &StateMachine{
-		current: make(map[ID]StateType),
+		current: make(map[ID]State),
 		states:  mStates,
 		initial: initial,
 	}
@@ -64,7 +62,7 @@ func NewStateMachine(initial StateType, states States) (*StateMachine, error) {
 	return machine, nil
 }
 
-func (m *StateMachine) Current(id ID) StateType {
+func (m *StateMachine) Current(id ID) State {
 	if m.current[id] == "" {
 		return m.initial
 	}
@@ -72,7 +70,7 @@ func (m *StateMachine) Current(id ID) StateType {
 	return m.current[id]
 }
 
-func (m *StateMachine) getNextState(id ID, event EventType) (StateType, error) {
+func (m *StateMachine) getNextState(id ID, event Event) (State, error) {
 	current := m.Current(id)
 	next, ok := m.states[current].transitions[event]
 
@@ -89,7 +87,7 @@ func (m *StateMachine) getNextState(id ID, event EventType) (StateType, error) {
 	return next, nil
 }
 
-func (m *StateMachine) Transition(id ID, event EventType) (StateType, error) {
+func (m *StateMachine) Transition(id ID, event Event) (State, error) {
 	next, err := m.getNextState(id, event)
 
 	if err != nil {

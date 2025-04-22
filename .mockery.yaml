@@ -10,6 +10,7 @@ packages:
       TgClient:
       ScrapClient:
       CtxStorage:
+      CacheStorage:
   linkTraccer/internal/infrastructure/siteClients/stackoverflow:
     config:
       dir: mocks

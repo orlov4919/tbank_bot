@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
 	"linkTraccer/internal/application/scrapper/scrapservice"
-	"linkTraccer/internal/infrastructure/cache/redis"
 	"linkTraccer/internal/infrastructure/scrapconfig"
 )
 
@@ -22,19 +20,23 @@ type SiteClient = scrapservice.SiteClient
 type Config = scrapconfig.Config
 
 func main() {
-	redisConfig, err := redis.NewConfig()
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	redis, err := redis.NewStore(redisConfig)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	fmt.Println(redis.InvalidateUserCache(32))
+	//redisConfig, err := redis.NewConfig()
+	//if err != nil {
+	//	fmt.Println(err.Error())
+	//	return
+	//}
+	//
+	//redis, err := redis.NewStore(redisConfig)
+	//if err != nil {
+	//	fmt.Println(err.Error())
+	//	return
+	//}
+	//
+	//fmt.Println(redis.SetUserLinks(1, "ds"))
+	//fmt.Println(redis.GetUserLinks(2))
+	//fmt.Println(redis.GetUserLinks(1))
+	//fmt.Println(redis.InvalidateUserCache(1))
+	//fmt.Println(redis.GetUserLinks(1))
 
 	//logLevel := new(slog.LevelVar)
 	//

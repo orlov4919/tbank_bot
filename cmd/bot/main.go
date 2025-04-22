@@ -48,7 +48,7 @@ func main() {
 
 	s := gocron.NewScheduler(time.UTC)
 
-	_, err = s.Every(time.Second * 3).Do(tgBot.CheckUsersMsg)
+	_, err = s.Every(time.Second * 3).Do(tgBot.ProcessMsg)
 	if err != nil {
 		logger.Error("ошибка в работе планировщика", "err", err.Error())
 		return

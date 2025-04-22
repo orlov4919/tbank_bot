@@ -6,6 +6,8 @@ import (
 	"log/slog"
 )
 
+type Handler func(tgbot.ID, tgbot.Event) error
+
 type TgClient interface {
 	HandleUsersUpdates(offset, limit int) (tgbot.Updates, error)
 	SendMessage(userID int64, text string) error
@@ -28,32 +30,32 @@ type ScrapClient interface {
 	UserLinks(tgbot.ID) ([]tgbot.Link, error)
 }
 
-type HashStore interface {
+type CacheStorage interface {
 	SetUserLinks(id tgbot.ID, links string) error
 	GetUserLinks(id tgbot.ID) (string, error)
 	InvalidateUserCache(id tgbot.ID) error
 }
 
 type TgBot struct {
-	offset         int
-	limit          int
-	log            *slog.Logger
-	states         *tgbot.StateMachine
-	client         TgClient
-	ctxStore       CtxStorage
-	hashStore      HashStore
-	scrapClient    ScrapClient
-	statesHandlers map[tgbot.StateType]stateHandler
+	offset        int
+	limit         int
+	log           *slog.Logger
+	states        *tgbot.StateMachine
+	tg            TgClient
+	ctxStore      CtxStorage
+	cache         CacheStorage
+	scrap         ScrapClient
+	stateHandlers map[tgbot.State]Handler
 }
 
-func New(client TgClient, scrapClient ScrapClient, ctxStore CtxStorage, hashStore HashStore, log *slog.Logger, limit int) *TgBot {
+func New(tg TgClient, scrap ScrapClient, ctxStore CtxStorage, cache CacheStorage, log *slog.Logger, limit int) *TgBot {
 	return &TgBot{
-		ctxStore:    ctxStore,
-		hashStore:   hashStore,
-		client:      client,
-		limit:       limit,
-		scrapClient: scrapClient,
-		log:         log,
+		ctxStore: ctxStore,
+		cache:    cache,
+		tg:       tg,
+		limit:    limit,
+		scrap:    scrap,
+		log:      log,
 	}
 }
 
@@ -65,6 +67,15 @@ func (bot *TgBot) Init() error {
 		return err
 	}
 
+	bot.stateHandlers = map[tgbot.State]Handler{
+		InitialState:         bot.RegHandler,
+		AnyRegisteredCommand: bot.CommandsHandler,
+		RemoveLink:           bot.LinkRemoveHandler,
+		AddNewLink:           bot.AddLinkHandler,
+		AddLinkTag:           bot.AddTagHandler,
+		AddLinkFilter:        bot.SaveLinkHandler,
+	}
+
 	if err := bot.setCommands(); err != nil {
 		return err
 	}
@@ -72,8 +83,8 @@ func (bot *TgBot) Init() error {
 	return nil
 }
 
-func (bot *TgBot) CheckUsersMsg() {
-	updates, err := bot.client.HandleUsersUpdates(bot.offset, bot.limit)
+func (bot *TgBot) ProcessMsg() {
+	updates, err := bot.tg.HandleUsersUpdates(bot.offset, bot.limit)
 	if err != nil {
 		bot.log.Error("ошибка при пулинге новых сообщений", "err", err.Error())
 		return
@@ -89,7 +100,7 @@ func (bot *TgBot) CheckUsersMsg() {
 			id := update.Msg.From.ID
 			state := bot.states.Current(id)
 
-			if _, ok := stateHandlers[state]; !ok {
+			if _, ok := bot.stateHandlers[state]; !ok {
 				bot.log.Debug(fmt.Sprintf("у состояния %s, нет обработчика", state))
 
 				continue
@@ -97,7 +108,7 @@ func (bot *TgBot) CheckUsersMsg() {
 
 			bot.log.Debug(fmt.Sprintf("у состояния %s, нет обработчика", state))
 
-			err := stateHandlers[state](bot.client, bot.scrapClient, bot.ctxStore, id, update.Msg.Text)
+			err := bot.stateHandlers[state](id, update.Msg.Text)
 
 			if err != nil {
 				bot.log.Debug("ошибка при обработке состояния пользователя", "err", err.Error())
@@ -118,7 +129,7 @@ func (bot *TgBot) setCommands() error {
 			tgbot.BotCommand{Command: command[0], Description: command[1]})
 	}
 
-	if err := bot.client.SetBotCommands(commandsMsg); err != nil {
+	if err := bot.tg.SetBotCommands(commandsMsg); err != nil {
 		return fmt.Errorf("ошибка при отправке запроса SetBotCommands: %w", err)
 	}
 

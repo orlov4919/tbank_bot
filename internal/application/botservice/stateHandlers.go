@@ -7,24 +7,24 @@ import (
 	"strings"
 )
 
-func (bot *TgBot) RegHandler(id tgbot.ID, _ tgbot.EventType) error {
+func (bot *TgBot) RegHandler(id tgbot.ID, _ tgbot.Event) error {
 	if err := bot.ctxStore.RegUser(id); err != nil {
 		return fmt.Errorf("при регистрации в хранилище контекстной информации возникла ошибка: %w", err)
 	}
 
-	if err := bot.client.SendMessage(id, FirstMessage); err != nil {
+	if err := bot.tg.SendMessage(id, FirstMessage); err != nil {
 		return fmt.Errorf("при отправке %s произошла ошибка: %w", FirstMessage, err)
 	}
 
-	if err := bot.scrapClient.RegUser(id); err != nil {
+	if err := bot.scrap.RegUser(id); err != nil {
 		return fmt.Errorf("при регистрации пользователя произошла ошибка: %w", err)
 	}
 
 	return nil
 }
 
-func (bot *TgBot) CommandsStateHandler(id tgbot.ID, event tgbot.EventType) error {
-	err := bot.CommandsHandler(id, event)
+func (bot *TgBot) CommandsHandler(id tgbot.ID, event tgbot.Event) error {
+	err := bot.Commands(id, event)
 	if err != nil {
 		return bot.sendMessage(id, UnknownCommand)
 	}
@@ -32,17 +32,13 @@ func (bot *TgBot) CommandsStateHandler(id tgbot.ID, event tgbot.EventType) error
 	return nil
 }
 
-func (bot *TgBot) LinkRemoveHandler(id tgbot.ID, event tgbot.EventType) error {
-	err := bot.CommandsHandler(id, event)
+func (bot *TgBot) LinkRemoveHandler(id tgbot.ID, event tgbot.Event) error {
+	err := bot.Commands(id, event)
 	if err == nil || !errors.Is(err, ErrCommandNotFound) {
 		return err
 	}
 
-	if err := bot.ctxStore.AddURL(id, event); err != nil {
-		return fmt.Errorf("при добавлении ссылки в контекстное хранилище произошла ошибка: %w", err)
-	}
-
-	err = bot.scrapClient.RemoveLink(id, event)
+	err = bot.scrap.RemoveLink(id, event)
 	if errors.Is(err, tgbot.LinkNotExist) {
 		return bot.sendMessage(id, NotSaveThisLink)
 	}
@@ -51,15 +47,15 @@ func (bot *TgBot) LinkRemoveHandler(id tgbot.ID, event tgbot.EventType) error {
 		return err
 	}
 
-	if err := bot.hashStore.InvalidateUserCache(id); err != nil {
+	if err := bot.cache.InvalidateUserCache(id); err != nil {
 		bot.log.Error("ошибка инвалидации кеша, при удалении ссылки", "err", err.Error())
 	}
 
-	return bot.sendMessage(id, LinkDelete)
+	return bot.sendMessage(id, LinkDeleted)
 }
 
-func (bot *TgBot) AddLinkHandler(id tgbot.ID, event tgbot.EventType) error {
-	err := bot.CommandsHandler(id, event)
+func (bot *TgBot) AddLinkHandler(id tgbot.ID, event tgbot.Event) error {
+	err := bot.Commands(id, event)
 	if err == nil || !errors.Is(err, ErrCommandNotFound) {
 		return err
 	}
@@ -71,8 +67,8 @@ func (bot *TgBot) AddLinkHandler(id tgbot.ID, event tgbot.EventType) error {
 	return bot.sendMessage(id, AddLinkTagMsg)
 }
 
-func (bot *TgBot) AddTagHandler(id tgbot.ID, event tgbot.EventType) error {
-	err := bot.CommandsHandler(id, event)
+func (bot *TgBot) AddTagHandler(id tgbot.ID, event tgbot.Event) error {
+	err := bot.Commands(id, event)
 	if err == nil || !errors.Is(err, ErrCommandNotFound) {
 		return err
 	}
@@ -84,8 +80,8 @@ func (bot *TgBot) AddTagHandler(id tgbot.ID, event tgbot.EventType) error {
 	return bot.sendMessage(id, AddLinkFilterMsg)
 }
 
-func (bot *TgBot) SaveLinkHandler(id tgbot.ID, event tgbot.EventType) error {
-	err := bot.CommandsHandler(id, event)
+func (bot *TgBot) SaveLinkHandler(id tgbot.ID, event tgbot.Event) error {
+	err := bot.Commands(id, event)
 	if err == nil || !errors.Is(err, ErrCommandNotFound) {
 		return nil
 	}
@@ -99,7 +95,7 @@ func (bot *TgBot) SaveLinkHandler(id tgbot.ID, event tgbot.EventType) error {
 		return fmt.Errorf("ошибка при сохраненни, при получении контекстной информации произошла ошибка: %w", err)
 	}
 
-	err = bot.scrapClient.AddLink(id, userContext)
+	err = bot.scrap.AddLink(id, userContext)
 	if errors.Is(err, tgbot.LinkNotSupport) {
 		return bot.sendMessage(id, WrongLink)
 	}
@@ -108,25 +104,25 @@ func (bot *TgBot) SaveLinkHandler(id tgbot.ID, event tgbot.EventType) error {
 		return err
 	}
 
-	if err := bot.hashStore.InvalidateUserCache(id); err != nil {
+	if err := bot.cache.InvalidateUserCache(id); err != nil {
 		bot.log.Error("ошибка инвалидации кеша, при добавлении ссылки", "err", err.Error())
 	}
 
 	return bot.sendMessage(id, GoodLink)
 }
 
-func (bot *TgBot) CommandsHandler(id tgbot.ID, event tgbot.EventType) error {
-	switch event {
+func (bot *TgBot) Commands(id tgbot.ID, command tgbot.Event) error {
+	switch command {
 	case Start:
 		return bot.sendMessage(id, FirstMessage)
 	case Help:
 		return bot.sendMessage(id, HelpMessage)
 	case List:
-		links, err := bot.hashStore.GetUserLinks(id)
+		links, err := bot.cache.GetUserLinks(id)
 		if err != nil {
 			bot.log.Error("не удалось получить список ссылок из кеша", "err", err.Error())
 
-			userLinks, err := bot.scrapClient.UserLinks(id)
+			userLinks, err := bot.scrap.UserLinks(id)
 			if err != nil {
 				return err
 			}
@@ -150,7 +146,7 @@ func (bot *TgBot) CommandsHandler(id tgbot.ID, event tgbot.EventType) error {
 }
 
 func (bot *TgBot) sendMessage(id tgbot.ID, message string) error {
-	if err := bot.client.SendMessage(id, message); err != nil {
+	if err := bot.tg.SendMessage(id, message); err != nil {
 		return fmt.Errorf("при отправке сообщения %s произошла ошибка: %w", message, err)
 	}
 
@@ -158,6 +154,10 @@ func (bot *TgBot) sendMessage(id tgbot.ID, message string) error {
 }
 
 func formatLinksMsg(links []tgbot.Link) string {
+	if len(links) == 0 {
+		return ""
+	}
+
 	builder := strings.Builder{}
 
 	builder.WriteString("Список ваших ссылок:\n\n")
