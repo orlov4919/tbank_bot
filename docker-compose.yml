@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      - TZ=Europe/Moscow
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_PASSWORD=${DB_PASS}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d linkTraccer" ]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  migrations:
+    image: migrate/migrate
+    container_name: migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    command:
+      -path /migrations
+      -database "postgres://${DB_USER}:${DB_PASS}@postgres:5432/${DB_NAME}?sslmode=disable" up
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:6.1.1
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+
+  kafka:
+    image: confluentinc/cp-kafka:6.1.1
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+    expose:
+      - '29092'
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_MIN_INSYNC_REPLICAS: '1'
+
+  init-kafka:
+    image: confluentinc/cp-kafka:6.1.1
+    depends_on:
+      - kafka
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka:29092 --list
+
+      echo -e 'Creating kafka topics'
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic updates --replication-factor 1 --partitions 1
+      
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka:29092 --list
+      "
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      init-kafka:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPERCONNECT: zookeeper:2181
+
+

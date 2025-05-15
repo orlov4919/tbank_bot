@@ -3,3 +3,27 @@ filename: "{{.InterfaceName | snakecase}}.go"
 mockname: "{{.InterfaceName | firstUpper}}"
 outpkg: mocks
 packages:
+  linkTraccer/internal/application/botService:
+    config:
+      dir: mocks
+    interfaces:
+      TgClient:
+      ScrapClient:
+      CtxStorage:
+  linkTraccer/internal/infrastructure/siteClients/stackoverflow:
+    config:
+      dir: mocks
+    interfaces:
+      HTTPClient:
+  linkTraccer/internal/application/scrapper/scrapservice:
+    config:
+      dir: mocks
+    interfaces:
+      Transactor:
+      UserRepo:
+      SiteClient:
+  linkTraccer/internal/application/scrapper/notifiers/tgnotifier:
+    config:
+      dir: mocks
+    interfaces:
+      BotClient:
