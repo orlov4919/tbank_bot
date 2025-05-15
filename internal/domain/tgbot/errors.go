@@ -48,10 +48,10 @@ func (err *ErrEventDeclined) Error() string {
 
 type ErrTransitionFailed struct {
 	id    ID
-	event EventType
+	event Event
 }
 
-func NewErrTransitionFailed(id ID, event EventType) *ErrTransitionFailed {
+func NewErrTransitionFailed(id ID, event Event) *ErrTransitionFailed {
 	return &ErrTransitionFailed{
 		id:    id,
 		event: event,

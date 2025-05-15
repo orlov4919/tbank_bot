@@ -7,7 +7,7 @@ import (
 )
 
 type Config struct {
-	UpdatesTransport string `env:"UPDATE_TRANSPORT"`
+	UpdatesTransport string `env:"UPDATES_TRANSPORT"`
 	ScrapperPort     string `env:"SCRAPPER_PORT"`
 	GitHubAPIKey     string `env:"GIT_KEY"`
 }

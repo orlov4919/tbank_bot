@@ -12,21 +12,24 @@ import (
 	"strings"
 )
 
-func New(tgClient botservice.TgClient, config *Config, log *slog.Logger) *KafkaConsumer {
+func New(tg botservice.TgClient, cfg *Config, log *slog.Logger) *KafkaConsumer {
 	return &KafkaConsumer{
 		reader: kafka.NewReader(
-			kafka.ReaderConfig{Brokers: strings.Split(config.Brokers, ","),
-				Topic:    config.Topic,
-				MaxBytes: 10e6}),
-		tgClient: tgClient,
-		log:      log,
+			kafka.ReaderConfig{
+				Brokers:  strings.Split(cfg.Brokers, ","),
+				Topic:    cfg.Topic,
+				MaxBytes: 10e6,
+			},
+		),
+		tg:  tg,
+		log: log,
 	}
 }
 
 type KafkaConsumer struct {
-	tgClient botservice.TgClient
-	log      *slog.Logger
-	reader   *kafka.Reader
+	tg     botservice.TgClient
+	log    *slog.Logger
+	reader *kafka.Reader
 }
 
 func (c *KafkaConsumer) ReadUserUpdates(ctx context.Context) error {
@@ -67,7 +70,7 @@ func (c *KafkaConsumer) processUpdate(updates *dto.LinkUpdate) error {
 	msg := updates.Description + updates.URL
 
 	for _, userID := range updates.TgChatIDs {
-		if err := c.tgClient.SendMessage(userID, msg); err != nil {
+		if err := c.tg.SendMessage(userID, msg); err != nil {
 			return fmt.Errorf("ошибка при отправке обновлений в телеграмм: %w", err)
 		}
 	}

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"github.com/go-co-op/gocron"
 	"linkTraccer/internal/application/botservice"
-	"linkTraccer/internal/infrastructure/botconfig"
+	"linkTraccer/internal/infrastructure/botconf"
 	"linkTraccer/internal/infrastructure/bothandler"
+	"linkTraccer/internal/infrastructure/cache/redisstore"
 	"linkTraccer/internal/infrastructure/database/file/contextstorage"
+	"linkTraccer/internal/infrastructure/kafka/consumer"
 	"linkTraccer/internal/infrastructure/scrapclient"
 	"linkTraccer/internal/infrastructure/telegram"
 	"log/slog"
@@ -28,16 +31,29 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
 
-	config, err := botconfig.New()
+	appConf, err := botconf.New()
 	if err != nil {
 		logger.Error("ошибка при получении конфига бота", "err", err.Error())
 		return
 	}
 
-	tgClient := telegram.NewClient(&http.Client{Timeout: time.Minute}, config.Token, telegramBotAPI)
+	tgClient := telegram.NewClient(&http.Client{Timeout: time.Minute}, appConf.BotToken, telegramBotAPI)
 	ctxStore := contextstorage.New()
-	scrapClient := scrapclient.New(&http.Client{Timeout: time.Minute}, config.ScrapperHost, config.ScrapperPort)
-	tgBot := botservice.New(tgClient, scrapClient, ctxStore, logger, 5)
+	scrapClient := scrapclient.New(&http.Client{Timeout: time.Minute}, appConf.ScrapperHost, appConf.ScrapperPort)
+
+	redisConf, err := redisstore.NewConfig()
+	if err != nil {
+		logger.Error("ошибка при создании конфига редис", "err", err.Error())
+		return
+	}
+
+	redisStore, err := redisstore.NewStore(redisConf)
+	if err != nil {
+		logger.Error("ошибка при создании redis хранилища", "err", err.Error())
+		return
+	}
+
+	tgBot := botservice.New(tgClient, scrapClient, ctxStore, redisStore, logger, appConf.BotBatch)
 
 	if err = tgBot.Init(); err != nil {
 		logger.Error("ошибка при инициализации бота", "err", err.Error())
@@ -48,7 +64,7 @@ func main() {
 
 	s := gocron.NewScheduler(time.UTC)
 
-	_, err = s.Every(time.Second * 3).Do(tgBot.CheckUsersMsg)
+	_, err = s.Every(time.Second * 3).Do(tgBot.ProcessMsg)
 	if err != nil {
 		logger.Error("ошибка в работе планировщика", "err", err.Error())
 		return
@@ -61,19 +77,30 @@ func main() {
 
 	wg.Add(1)
 
-	go func() {
-		defer wg.Done()
-		initAndRunServer(tgClient, config, logger)
-	}()
+	go startReceiveUpdates(context.Background(), tgClient, appConf, logger, wg)
 
-	logger.Info("запущен сервер принимающий обновления по ссылкам")
 	wg.Wait()
 }
 
-func initAndRunServer(tgClient botservice.TgClient, config *botconfig.Config, logger *slog.Logger) {
+func startReceiveUpdates(ctx context.Context, tg botservice.TgClient, config *botconf.Config, logger *slog.Logger, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	switch config.UpdatesTransport {
+	case "KAFKA":
+		logger.Info("запущен консьюмер принимающий обновления по ссылкам")
+		initAndRunConsumer(ctx, tg, config, logger)
+	case "HTTP":
+		logger.Info("запущен сервер принимающий обновления по ссылкам")
+		initAndRunServer(tg, config, logger)
+	default:
+		logger.Error("ошибка конфигурации", "err", "получение обновлений должно быть KAFKA или HTTP")
+	}
+}
+
+func initAndRunServer(tg botservice.TgClient, config *botconf.Config, logger *slog.Logger) {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/updates", bothandler.New(tgClient, logger).HandleLinkUpdates).Methods(http.MethodPost)
+	r.HandleFunc("/updates", bothandler.New(tg, logger).HandleLinkUpdates).Methods(http.MethodPost)
 
 	srv := &http.Server{
 		Addr:         config.BotPort,
@@ -84,10 +111,25 @@ func initAndRunServer(tgClient botservice.TgClient, config *botconfig.Config, lo
 	}
 
 	if err := srv.ListenAndServe(); err != nil {
-		logger.Error("сервер закончил работу", "err", err.Error())
+		logger.Error("сервер принимающий обновления ссылок, закончил работу", "err", err.Error())
 	}
 }
 
-func initAndRunConsumer() {
+func initAndRunConsumer(ctx context.Context, tg botservice.TgClient, config *botconf.Config, logger *slog.Logger) {
+	conf, err := consumer.NewConfig()
+	if err != nil {
+		logger.Error("ошибка при создании конфига kafka консьюмера", "err", err.Error())
+	}
 
+	consumer := consumer.New(tg, conf, logger)
+
+	err = consumer.ReadUserUpdates(ctx)
+	if err != nil {
+		logger.Error("консьюмер закончил работу с ошибкой", "err", err.Error())
+	}
+
+	err = consumer.Close()
+	if err != nil {
+		logger.Error("ошибка при закрытии консьюмера", "err", err.Error())
+	}
 }

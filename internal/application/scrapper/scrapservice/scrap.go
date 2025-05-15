@@ -44,6 +44,10 @@ type NotifyService interface {
 	SendUpdates(linkInfo *scrapper.LinkInfo, linkUpdates scrapper.LinkUpdates) error
 }
 
+type FilterService interface {
+	FilterByCreator()
+}
+
 type Transactor interface {
 	WithTransaction(ctx context.Context, fn func(ctx context.Context) error) error
 }
@@ -64,12 +68,11 @@ func New(userRepo UserRepo, notifyService NotifyService, log *slog.Logger, siteC
 	}
 }
 
-func (scrap *Scrapper) CheckLinksUpdates() {
+func (scrap *Scrapper) LinksUpdates() {
 	linksPaginator := scrap.userRepo.NewLinksPaginator()
 
 	for linksPaginator.HasLinks() {
 		links, err := linksPaginator.LinksBatch()
-
 		if err != nil {
 			scrap.log.Error("ошибка при получении батча ссылок", "err", err.Error())
 
@@ -85,7 +88,7 @@ func (scrap *Scrapper) CheckLinksUpdates() {
 		wg.Add(workersNum)
 
 		for worker := 0; worker < workersNum; worker++ {
-			go scrap.checkLinksUpdates(wg, linksChan)
+			go scrap.findUpdates(wg, linksChan)
 		}
 
 		wg.Wait()
@@ -100,11 +103,12 @@ func linksToChan(links []*scrapper.LinkInfo, out chan<- *scrapper.LinkInfo) {
 	close(out)
 }
 
-func (scrap *Scrapper) checkLinksUpdates(wg *sync.WaitGroup, linksChan <-chan *scrapper.LinkInfo) {
+func (scrap *Scrapper) findUpdates(wg *sync.WaitGroup, linksChan <-chan *scrapper.LinkInfo) {
 	defer wg.Done()
 
 	for linkInfo := range linksChan {
 		for _, siteClient := range scrap.siteClients {
+
 			if !siteClient.CanTrack(linkInfo.URL) {
 				continue
 			}
@@ -112,7 +116,6 @@ func (scrap *Scrapper) checkLinksUpdates(wg *sync.WaitGroup, linksChan <-chan *s
 			t := time.Now().In(MoskowTime).Truncate(time.Second)
 
 			linkUpdates, err := siteClient.LinkUpdates(linkInfo.URL, linkInfo.LastUpdate)
-
 			if err != nil {
 				scrap.log.Error("при получении обновлений ссылки произошла ошибка", "err", err.Error())
 				break
@@ -129,8 +132,15 @@ func (scrap *Scrapper) checkLinksUpdates(wg *sync.WaitGroup, linksChan <-chan *s
 
 			scrap.log.Info(fmt.Sprintf("произошло %d обновлений по ссылке %s", len(linkUpdates), linkInfo.URL))
 
-			if err = scrap.notifyService.SendUpdates(linkInfo, linkUpdates); err != nil {
-				scrap.log.Error("ошибка при отправке обновлений", "err", err.Error())
+			 users, err := scrap.userRepo.UsersWhoTrackLink(linkInfo.ID) делаем это в фильтре
+
+			for _, linkUpdate := range linkUpdates {
+				users, err := scrap.filter.Users(linkInfo, linkUpdates)
+
+				if err = scrap.notifyService.SendUpdates(linkInfo, linkUpdates); err != nil {
+					scrap.log.Error("ошибка при отправке обновлений", "err", err.Error())
+				}
+
 			}
 		}
 	}

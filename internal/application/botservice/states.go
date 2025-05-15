@@ -3,15 +3,15 @@ package botservice
 import "linkTraccer/internal/domain/tgbot"
 
 const (
-	InitialState         tgbot.StateType = "init"    // В этом состоянии бот может принять только команду /start
-	AnyRegisteredCommand tgbot.StateType = "comands" // В этом состоянии бот может выполнить любую команду
-	RemoveLink           tgbot.StateType = "remove"  // В этом состоянии бот ждет ссылку для удаления, а так же может выполнить любую команду
-	AddNewLink           tgbot.StateType = "link"    // В этом состоянии бот ждет ссылку, а так же может выполнить любую команду
-	AddLinkTag           tgbot.StateType = "tag"     // В этом состоянии бот ждет тэг ссылки, а так же может выполнить любую команду
-	AddLinkFilter        tgbot.StateType = "filter"  // В этом состоянии бот ждет фильтр ссылки, а так же может выполнить любую команду
+	InitialState         tgbot.State = "init"    // В этом состоянии бот может принять только команду /start
+	AnyRegisteredCommand tgbot.State = "comands" // В этом состоянии бот может выполнить любую команду
+	RemoveLink           tgbot.State = "remove"  // В этом состоянии бот ждет ссылку для удаления, а так же может выполнить любую команду
+	AddNewLink           tgbot.State = "link"    // В этом состоянии бот ждет ссылку, а так же может выполнить любую команду
+	AddLinkTag           tgbot.State = "tag"     // В этом состоянии бот ждет тэг ссылки, а так же может выполнить любую команду
+	AddLinkFilter        tgbot.State = "filter"  // В этом состоянии бот ждет фильтр ссылки, а так же может выполнить любую команду
 )
 
-func NewTransition(event tgbot.EventType, dst tgbot.StateType) tgbot.Transition {
+func NewTransition(event tgbot.Event, dst tgbot.State) tgbot.Transition {
 	return tgbot.Transition{
 		Event: event,
 		Dst:   dst,
@@ -69,15 +69,4 @@ var states = tgbot.States{
 
 func botStates() tgbot.States {
 	return states
-}
-
-type stateHandler func(tgbot.ID, tgbot.EventType) error
-
-var stateHandlers = map[tgbot.StateType]stateHandler{
-	InitialState:         RegHandler,
-	AnyRegisteredCommand: CommandsStateHandler,
-	RemoveLink:           LinkRemoveHandler,
-	AddNewLink:           AddLinkHandler,
-	AddLinkTag:           AddTagHandler,
-	AddLinkFilter:        SaveLinkHandler,
 }

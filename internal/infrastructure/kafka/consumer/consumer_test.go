@@ -1,22 +1,41 @@
-package producer_test
+package consumer_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	kafkatest "github.com/testcontainers/testcontainers-go/modules/kafka"
 	"linkTraccer/internal/domain/dto"
-	"linkTraccer/internal/infrastructure/producer"
+	consumer2 "linkTraccer/internal/infrastructure/kafka/consumer"
+	"linkTraccer/internal/infrastructure/kafka/consumer/mocks"
+	producer2 "linkTraccer/internal/infrastructure/kafka/producer"
+	"log/slog"
+	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
 	topic    = "updates"
 	bathSize = 1
+	firstID  = int64(1)
+	secondID = int64(2)
+)
+
+var (
+	logLevel = slog.LevelDebug
+	logger   = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+
+	usersUpdate = &dto.LinkUpdate{
+		ID:          2,
+		URL:         "http://localhost:8080",
+		Description: "Новое обновление",
+		TgChatIDs:   []int64{firstID, secondID},
+	}
+
+	msg = usersUpdate.Description + usersUpdate.URL
 )
 
 func SetupContainer(ctx context.Context, t *testing.T) *kafkatest.KafkaContainer {
@@ -51,7 +70,7 @@ func CreateTopic(ctx context.Context, container *kafkatest.KafkaContainer) error
 	return err
 }
 
-func TestKafkaProducer_SendLinkUpdates(t *testing.T) {
+func TestKafkaConsumer_ReadUserUpdates(t *testing.T) {
 	kafkaContainer := SetupContainer(context.Background(), t)
 	brokersSlice, err := kafkaContainer.Brokers(context.Background())
 
@@ -59,8 +78,16 @@ func TestKafkaProducer_SendLinkUpdates(t *testing.T) {
 
 	brokers := strings.Join(brokersSlice, ",")
 
-	producer := producer.New(&producer.Config{Brokers: brokers, Bath: bathSize, Topic: topic})
-	consumer := kafka.NewReader(kafka.ReaderConfig{Brokers: brokersSlice, Topic: topic})
+	tgClient := mocks.NewTgClient(t)
+
+	tgClient.On("SendMessage", firstID, msg).Return(nil).Once()
+	tgClient.On("SendMessage", secondID, msg).Return(nil).Once()
+
+	producer := producer2.New(&producer2.Config{Brokers: brokers, Bath: bathSize, Topic: topic})
+	consumer := consumer2.New(tgClient, &consumer2.Config{Brokers: brokers, Topic: topic, Batch: bathSize}, logger)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go consumer.ReadUserUpdates(ctx)
 
 	defer producer.Close()
 	defer consumer.Close()
@@ -71,19 +98,7 @@ func TestKafkaProducer_SendLinkUpdates(t *testing.T) {
 
 	tests := []TestCase{
 		{
-			update: &dto.LinkUpdate{
-				ID:          1,
-				URL:         "http://localhost:8080",
-				Description: "Новое обновление",
-			},
-		},
-		{
-			update: &dto.LinkUpdate{
-				ID:          2,
-				URL:         "http://localhost:8080",
-				Description: "Новое обновление",
-				TgChatIDs:   []int64{1, 2, 3},
-			},
+			update: usersUpdate,
 		},
 	}
 
@@ -91,16 +106,9 @@ func TestKafkaProducer_SendLinkUpdates(t *testing.T) {
 		err := producer.SendLinkUpdates(test.update)
 
 		assert.NoError(t, err)
-
-		msg, err := consumer.ReadMessage(context.Background())
-
-		assert.NoError(t, err)
-
-		getUpdates := &dto.LinkUpdate{}
-
-		err = json.Unmarshal(msg.Value, getUpdates)
-
-		assert.NoError(t, err)
-		assert.Equal(t, test.update, getUpdates)
 	}
+	// ожидаем окончания выполнения горутин
+	time.Sleep(time.Second * 2)
+	cancel()
+	tgClient.AssertExpectations(t)
 }
