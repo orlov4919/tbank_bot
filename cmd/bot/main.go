@@ -77,17 +77,24 @@ func main() {
 
 	wg.Add(1)
 
-	switch appConf.UpdatesTransport{
-	case:
-	}
+	go startReceiveUpdates(context.Background(), tgClient, appConf, logger, wg)
 
-	go func() {
-		defer wg.Done()
-		initAndRunServer(tgClient, appConf, logger)
-	}()
-
-	logger.Info("запущен сервер принимающий обновления по ссылкам")
 	wg.Wait()
+}
+
+func startReceiveUpdates(ctx context.Context, tg botservice.TgClient, config *botconf.Config, logger *slog.Logger, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	switch config.UpdatesTransport {
+	case "KAFKA":
+		logger.Info("запущен консьюмер принимающий обновления по ссылкам")
+		initAndRunConsumer(ctx, tg, config, logger)
+	case "HTTP":
+		logger.Info("запущен сервер принимающий обновления по ссылкам")
+		initAndRunServer(tg, config, logger)
+	default:
+		logger.Error("ошибка конфигурации", "err", "получение обновлений должно быть KAFKA или HTTP")
+	}
 }
 
 func initAndRunServer(tg botservice.TgClient, config *botconf.Config, logger *slog.Logger) {
@@ -104,7 +111,7 @@ func initAndRunServer(tg botservice.TgClient, config *botconf.Config, logger *sl
 	}
 
 	if err := srv.ListenAndServe(); err != nil {
-		logger.Error("сервер закончил работу", "err", err.Error())
+		logger.Error("сервер принимающий обновления ссылок, закончил работу", "err", err.Error())
 	}
 }
 

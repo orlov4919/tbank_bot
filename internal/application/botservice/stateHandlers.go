@@ -128,6 +128,10 @@ func (bot *TgBot) Commands(id tgbot.ID, command tgbot.Event) error {
 			}
 
 			links = formatLinksMsg(userLinks)
+
+			if err := bot.cache.SetUserLinks(id, links); err != nil {
+				bot.log.Error("ошибка при кешировании ссылок пользователя", "err", err.Error())
+			}
 		}
 
 		if len(links) == 0 {
